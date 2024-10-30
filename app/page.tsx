@@ -64,17 +64,17 @@ interface Node {
 }
 
 // Grid size
-// const ROWS = 40;
-// const COLS = 60;
-const ROWS = ((window.innerHeight - 74) / 16);
-const COLS = ((window.innerWidth - (320 + 74)) / 16);
+// const rows = 40;
+// const cols = 60;
+// const rows = ((window.innerHeight - 74) / 16);
+// const cols = ((window.innerWidth - (320 + 74)) / 16);
 
 // Create initial grid
-const createInitialGrid = (): Node[][] => {
+const createInitialGrid = (rows: number, cols: number): Node[][] => {
   const grid: Node[][] = [];
-  for (let row = 0; row < ROWS; row++) {
+  for (let row = 0; row < rows; row++) {
     const currentRow: Node[] = [];
-    for (let col = 0; col < COLS; col++) {
+    for (let col = 0; col < cols; col++) {
       currentRow.push({
         row,
         col,
@@ -146,36 +146,51 @@ const reconstructBidirectionalPath = (
 };
 
 export default function Home() {
-  const [grid, setGrid] = useState<Node[][]>(createInitialGrid());
-  const [startNode, setStartNode] = useState<Node | null>(null);
-  const [endNode, setEndNode] = useState<Node | null>(null);
-  const [algorithm, setAlgorithm] = useState<
-    "astar" | "dijkstra" | "bfs" | "dfs" | "greedy" | "bidirectional"
-  >("astar");
-  const [isRunning, setIsRunning] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [obstaclePercentage, setObstaclePercentage] = useState(0);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [drawMode, setDrawMode] = useState<
-    "wall" | "weight" | "erase" | "start" | "end"
-  >("start");
-  const [visualizationSpeed, setVisualizationSpeed] = useState(80);
-  const [weightValue, setWeightValue] = useState(0);
-  const animationFrameId = useRef<number | null>(null);
-  const [stats, setStats] = useState({
-    visitedNodes: 0,
-    pathLength: 0,
-    executionTime: 0,
-  });
-  const [showHeatmap, setShowHeatmap] = useState(false);
+   const [rows, setRows] = useState(40);
+   const [cols, setCols] = useState(60);
+   const [grid, setGrid] = useState<Node[][]>([]);
+   const [startNode, setStartNode] = useState<Node | null>(null);
+   const [endNode, setEndNode] = useState<Node | null>(null);
+   const [algorithm, setAlgorithm] = useState<
+     "astar" | "dijkstra" | "bfs" | "dfs" | "greedy" | "bidirectional"
+   >("astar");
+   const [isRunning, setIsRunning] = useState(false);
+   const [isPaused, setIsPaused] = useState(false);
+   const [obstaclePercentage, setObstaclePercentage] = useState(0);
+   const [isDrawing, setIsDrawing] = useState(false);
+   const [drawMode, setDrawMode] = useState<
+     "wall" | "weight" | "erase" | "start" | "end"
+   >("start");
+   const [visualizationSpeed, setVisualizationSpeed] = useState(80);
+   const [weightValue, setWeightValue] = useState(1);
+   const animationFrameId = useRef<number | null>(null);
+   const [stats, setStats] = useState({
+     visitedNodes: 0,
+     pathLength: 0,
+     executionTime: 0,
+   });
+   const [showHeatmap, setShowHeatmap] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const newRows = Math.floor((window.innerHeight - 74) / 16);
+      const newCols = Math.floor((window.innerWidth - (320 + 74)) / 16);
+      setRows(newRows);
+      setCols(newCols);
+      setGrid(createInitialGrid(newRows, newCols));
+    } else {
+      setGrid(createInitialGrid(rows, cols));
+    }
+  }, []);
+
 
   // Reset grid
-  const resetGrid = useCallback(() => {
-    setGrid(createInitialGrid());
-    setStartNode(null);
-    setEndNode(null);
-    setStats({ visitedNodes: 0, pathLength: 0, executionTime: 0 });
-  }, []);
+   const resetGrid = useCallback(() => {
+     setGrid(createInitialGrid(rows, cols));
+     setStartNode(null);
+     setEndNode(null);
+     setStats({ visitedNodes: 0, pathLength: 0, executionTime: 0 });
+   }, [rows, cols]);
 
   // Set node type
   const setNodeType = (
@@ -198,6 +213,7 @@ export default function Home() {
     }
   };
 
+  // Handle node interaction
   // Handle node interaction
   const handleNodeInteraction = (row: number, col: number) => {
     if (isRunning) return;
@@ -243,17 +259,17 @@ export default function Home() {
   };
 
   // Get neighbors
-  const getNeighbors = (node: Node, currentGrid: Node[][]): Node[] => {
-    const neighbors: Node[] = [];
-    const { row, col } = node;
+ const getNeighbors = (node: Node, currentGrid: Node[][]): Node[] => {
+   const neighbors: Node[] = [];
+   const { row, col } = node;
 
-    if (row > 0) neighbors.push(currentGrid[row - 1][col]);
-    if (row < ROWS - 1) neighbors.push(currentGrid[row + 1][col]);
-    if (col > 0) neighbors.push(currentGrid[row][col - 1]);
-    if (col < COLS - 1) neighbors.push(currentGrid[row][col + 1]);
+   if (row > 0) neighbors.push(currentGrid[row - 1][col]);
+   if (row < rows - 1) neighbors.push(currentGrid[row + 1][col]);
+   if (col > 0) neighbors.push(currentGrid[row][col - 1]);
+   if (col < cols - 1) neighbors.push(currentGrid[row][col + 1]);
 
-    return neighbors.filter((neighbor) => neighbor.type !== "wall");
-  };
+   return neighbors.filter((neighbor) => neighbor.type !== "wall");
+ };
 
   // Visualize node
   const visualizeNode = async (row: number, col: number, type: NodeType) => {
@@ -708,14 +724,14 @@ export default function Home() {
   const generateRandomObstacles = () => {
     if (isRunning) return;
 
-    const newGrid = createInitialGrid();
-    const totalCells = ROWS * COLS;
+    const newGrid = createInitialGrid(rows, cols);
+    const totalCells = rows * cols;
     const obstaclesToAdd = Math.floor((totalCells * obstaclePercentage) / 100);
 
     let addedObstacles = 0;
     while (addedObstacles < obstaclesToAdd) {
-      const row = Math.floor(Math.random() * ROWS);
-      const col = Math.floor(Math.random() * COLS);
+      const row = Math.floor(Math.random() * rows);
+      const col = Math.floor(Math.random() * cols);
       if (newGrid[row][col].type === "empty") {
         newGrid[row][col].type = "wall";
         addedObstacles++;
@@ -731,9 +747,9 @@ export default function Home() {
   const generateMaze = () => {
     if (isRunning) return;
 
-    const newGrid = createInitialGrid();
-    for (let row = 0; row < ROWS; row++) {
-      for (let col = 0; col < COLS; col++) {
+    const newGrid = createInitialGrid(rows, cols);
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
         newGrid[row][col].type = "wall";
       }
     }
@@ -754,9 +770,9 @@ export default function Home() {
       ].filter(
         ([r, c]) =>
           r > 0 &&
-          r < ROWS - 1 &&
+          r < rows - 1 &&
           c > 0 &&
-          c < COLS - 1 &&
+          c < cols - 1 &&
           newGrid[r][c].type === "wall"
       );
 
@@ -807,8 +823,8 @@ export default function Home() {
           const importedGrid = JSON.parse(e.target?.result as string);
           if (
             Array.isArray(importedGrid) &&
-            importedGrid.length === ROWS &&
-            importedGrid[0].length === COLS
+            importedGrid.length === rows &&
+            importedGrid[0].length === cols
           ) {
             const newGrid = importedGrid.map((row: any[], rowIndex: number) =>
               row.map((cell: any, colIndex: number) => ({
@@ -877,7 +893,7 @@ export default function Home() {
             case "visited":
               bgColor = showHeatmap
                 ? `bg-blue-${Math.min(
-                    Math.floor((node.f * 100) / (ROWS * COLS)) * 100,
+                    Math.floor((node.f * 100) / (rows * cols)) * 100,
                     900
                   )}`
                 : "bg-blue-200";
