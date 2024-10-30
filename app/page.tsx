@@ -146,44 +146,51 @@ const reconstructBidirectionalPath = (
 };
 
 export default function Home() {
-   const [rows, setRows] = useState(40);
-   const [cols, setCols] = useState(60);
-   const [grid, setGrid] = useState<Node[][]>([]);
-   const [startNode, setStartNode] = useState<Node | null>(null);
-   const [endNode, setEndNode] = useState<Node | null>(null);
-   const [algorithm, setAlgorithm] = useState<
-     "astar" | "dijkstra" | "bfs" | "dfs" | "greedy" | "bidirectional"
-   >("astar");
-   const [isRunning, setIsRunning] = useState(false);
-   const [isPaused, setIsPaused] = useState(false);
-   const [obstaclePercentage, setObstaclePercentage] = useState(0);
-   const [isDrawing, setIsDrawing] = useState(false);
-   const [drawMode, setDrawMode] = useState<
-     "wall" | "weight" | "erase" | "start" | "end"
-   >("start");
-   const [visualizationSpeed, setVisualizationSpeed] = useState(80);
-   const [weightValue, setWeightValue] = useState(1);
-   const animationFrameId = useRef<number | null>(null);
-   const [stats, setStats] = useState({
-     visitedNodes: 0,
-     pathLength: 0,
-     executionTime: 0,
-   });
-   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [rows, setRows] = useState(40);
+  const [cols, setCols] = useState(60);
+  const [grid, setGrid] = useState<Node[][]>([]);
+  const [startNode, setStartNode] = useState<Node | null>(null);
+  const [endNode, setEndNode] = useState<Node | null>(null);
+  const [algorithm, setAlgorithm] = useState<
+    | "astar"
+    | "dijkstra"
+    | "bfs"
+    | "dfs"
+    | "greedy"
+    | "bidirectional"
+    | "swarm"
+    | "convergentSwarm"
+    | "bidirectionalSwarm"
+  >("astar");
+  const [isRunning, setIsRunning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [obstaclePercentage, setObstaclePercentage] = useState(0);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [drawMode, setDrawMode] = useState<
+    "wall" | "weight" | "erase" | "start" | "end"
+  >("start");
+  const [visualizationSpeed, setVisualizationSpeed] = useState(80);
+  const [weightValue, setWeightValue] = useState(1);
+  const animationFrameId = useRef<number | null>(null);
+  const [stats, setStats] = useState({
+    visitedNodes: 0,
+    pathLength: 0,
+    executionTime: 0,
+  });
+  const [showHeatmap, setShowHeatmap] = useState(false);
 
-   const isPausedRef = useRef(isPaused);
+  const isPausedRef = useRef(isPaused);
 
-   useEffect(() => {
-     isPausedRef.current = isPaused;
-   }, [isPaused]);
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
 
-   const handlePause = () => {
-     isPausedRef.current = !isPausedRef.current;
-     setIsPaused(isPausedRef.current);
-   };
+  const handlePause = () => {
+    isPausedRef.current = !isPausedRef.current;
+    setIsPaused(isPausedRef.current);
+  };
 
-  
-   useEffect(() => {
+  useEffect(() => {
     if (typeof window !== "undefined") {
       const newRows = Math.floor((window.innerHeight - 74) / 16);
       const newCols = Math.floor((window.innerWidth - (320 + 74)) / 16);
@@ -195,14 +202,13 @@ export default function Home() {
     }
   }, []);
 
-
   // Reset grid
-   const resetGrid = useCallback(() => {
-     setGrid(createInitialGrid(rows, cols));
-     setStartNode(null);
-     setEndNode(null);
-     setStats({ visitedNodes: 0, pathLength: 0, executionTime: 0 });
-   }, [rows, cols]);
+  const resetGrid = useCallback(() => {
+    setGrid(createInitialGrid(rows, cols));
+    setStartNode(null);
+    setEndNode(null);
+    setStats({ visitedNodes: 0, pathLength: 0, executionTime: 0 });
+  }, [rows, cols]);
 
   // Set node type
   const setNodeType = (
@@ -271,17 +277,17 @@ export default function Home() {
   };
 
   // Get neighbors
- const getNeighbors = (node: Node, currentGrid: Node[][]): Node[] => {
-   const neighbors: Node[] = [];
-   const { row, col } = node;
+  const getNeighbors = (node: Node, currentGrid: Node[][]): Node[] => {
+    const neighbors: Node[] = [];
+    const { row, col } = node;
 
-   if (row > 0) neighbors.push(currentGrid[row - 1][col]);
-   if (row < rows - 1) neighbors.push(currentGrid[row + 1][col]);
-   if (col > 0) neighbors.push(currentGrid[row][col - 1]);
-   if (col < cols - 1) neighbors.push(currentGrid[row][col + 1]);
+    if (row > 0) neighbors.push(currentGrid[row - 1][col]);
+    if (row < rows - 1) neighbors.push(currentGrid[row + 1][col]);
+    if (col > 0) neighbors.push(currentGrid[row][col - 1]);
+    if (col < cols - 1) neighbors.push(currentGrid[row][col + 1]);
 
-   return neighbors.filter((neighbor) => neighbor.type !== "wall");
- };
+    return neighbors.filter((neighbor) => neighbor.type !== "wall");
+  };
 
   // Visualize node
   const visualizeNode = async (row: number, col: number, type: NodeType) => {
@@ -312,16 +318,15 @@ export default function Home() {
     setStats({ visitedNodes: 0, pathLength: 0, executionTime: 0 });
 
     // Reset previous paths and visited nodes
-    setGrid((prevGrid: any) => {
-      const newGrid = prevGrid.map((row: any) =>
-        row.map((node: any) => {
+    setGrid((prevGrid) => {
+      return prevGrid.map((row) =>
+        row.map((node) => {
           if (node.type === "visited" || node.type === "path") {
             return { ...node, type: "empty", parent: null, f: 0, g: 0, h: 0 };
           }
           return node;
         })
       );
-      return newGrid;
     });
 
     const startTime = performance.now();
@@ -346,6 +351,15 @@ export default function Home() {
       case "bidirectional":
         path = await bidirectionalSearch();
         break;
+      case "swarm":
+        path = await swarm();
+        break;
+      case "convergentSwarm":
+        path = await convergentSwarm();
+        break;
+      case "bidirectionalSwarm":
+        path = await bidirectionalSwarm();
+        break;
       default:
         break;
     }
@@ -356,7 +370,7 @@ export default function Home() {
       for (const node of path) {
         if (node.type !== "start" && node.type !== "end") {
           setGrid((prevGrid) => {
-            const newGrid = prevGrid.map((r) => r.map((n) => ({ ...n })));
+            const newGrid = prevGrid.map((row) => row.map((n) => ({ ...n })));
             newGrid[node.row][node.col].type = "path";
             return newGrid;
           });
@@ -373,6 +387,16 @@ export default function Home() {
     }
 
     setIsRunning(false);
+  };
+
+  const pauseAlgorithm = async () => {
+    await new Promise<void>((resolve) => {
+      const checkPause = () => {
+        if (!isPausedRef.current) resolve();
+        else setTimeout(checkPause, 100);
+      };
+      checkPause();
+    });
   };
 
   // A* algorithm
@@ -428,6 +452,8 @@ export default function Home() {
         neighbor.h = heuristic(neighbor, grid[endNode.row][endNode.col]);
         neighbor.f = neighbor.g + neighbor.h;
         cameFrom[getNodeKey(neighbor)] = getNodeKey(current);
+
+        neighbor.parent = getNodeKey(current);
 
         await visualizeNode(neighbor.row, neighbor.col, "visited");
       }
@@ -732,6 +758,194 @@ export default function Home() {
     return null;
   };
 
+  const swarm = async (): Promise<Node[] | null> => {
+    if (!startNode || !endNode) return null;
+
+    const openSet: Node[] = [];
+    const closedSet: Set<string> = new Set();
+
+    const start = grid[startNode.row][startNode.col];
+    start.g = 0;
+    start.h = heuristic(start, grid[endNode.row][endNode.col]);
+    start.f = start.g - start.h;
+    openSet.push(start);
+
+    while (openSet.length > 0) {
+      if (isPausedRef.current) {
+        await pauseAlgorithm();
+      }
+
+      openSet.sort((a, b) => a.f - b.f);
+      const current = openSet.shift()!;
+
+      if (current.row === endNode.row && current.col === endNode.col) {
+        return reconstructPath(current, grid);
+      }
+
+      closedSet.add(getNodeKey(current));
+
+      const neighbors = getNeighbors(current, grid);
+      for (const neighbor of neighbors) {
+        const neighborKey = getNodeKey(neighbor);
+        if (closedSet.has(neighborKey)) continue;
+
+        const tentativeG = current.g + neighbor.weight;
+
+        if (!openSet.includes(neighbor)) {
+          openSet.push(neighbor);
+        } else if (tentativeG >= neighbor.g) {
+          continue;
+        }
+
+        neighbor.g = tentativeG;
+        neighbor.h = heuristic(neighbor, grid[endNode.row][endNode.col]);
+        neighbor.f = neighbor.g - neighbor.h;
+        neighbor.parent = getNodeKey(current);
+
+        await visualizeNode(neighbor.row, neighbor.col, "visited");
+      }
+    }
+
+    return null;
+  };
+
+  const convergentSwarm = async (): Promise<Node[] | null> => {
+    if (!startNode || !endNode) return null;
+
+    const openSet: Node[] = [];
+    const closedSet: Set<string> = new Set();
+
+    const start = grid[startNode.row][startNode.col];
+    start.g = 0;
+    start.h = heuristic(start, grid[endNode.row][endNode.col]);
+    start.f = start.g + start.h;
+    openSet.push(start);
+
+    while (openSet.length > 0) {
+      if (isPausedRef.current) {
+        await pauseAlgorithm();
+      }
+
+      openSet.sort((a, b) => a.g + a.h - (b.g + b.h));
+      const current = openSet.shift()!;
+
+      if (current.row === endNode.row && current.col === endNode.col) {
+        return reconstructPath(current, grid);
+      }
+
+      closedSet.add(getNodeKey(current));
+
+      const neighbors = getNeighbors(current, grid);
+      for (const neighbor of neighbors) {
+        const neighborKey = getNodeKey(neighbor);
+        if (closedSet.has(neighborKey)) continue;
+
+        const tentativeG = current.g + neighbor.weight;
+
+        if (!openSet.includes(neighbor)) {
+          openSet.push(neighbor);
+        } else if (tentativeG >= neighbor.g) {
+          continue;
+        }
+
+        neighbor.g = tentativeG;
+        neighbor.h = heuristic(neighbor, grid[endNode.row][endNode.col]);
+        neighbor.f = neighbor.g + neighbor.h;
+        neighbor.parent = getNodeKey(current);
+
+        await visualizeNode(neighbor.row, neighbor.col, "visited");
+      }
+    }
+
+    return null;
+  };
+
+  const bidirectionalSwarm = async (): Promise<Node[] | null> => {
+    if (!startNode || !endNode) return null;
+
+    const forwardOpenSet: Node[] = [grid[startNode.row][startNode.col]];
+    const backwardOpenSet: Node[] = [grid[endNode.row][endNode.col]];
+    const forwardClosedSet: Set<string> = new Set();
+    const backwardClosedSet: Set<string> = new Set();
+    let meetingPoint: Node | null = null;
+
+    while (forwardOpenSet.length > 0 && backwardOpenSet.length > 0) {
+      if (isPausedRef.current) {
+        await pauseAlgorithm();
+      }
+
+      // Forward step
+      forwardOpenSet.sort((a, b) => a.f - b.f);
+      const currentForward = forwardOpenSet.shift()!;
+      forwardClosedSet.add(getNodeKey(currentForward));
+
+      if (backwardClosedSet.has(getNodeKey(currentForward))) {
+        meetingPoint = currentForward;
+        break;
+      }
+
+      const neighborsForward = getNeighbors(currentForward, grid);
+      for (const neighbor of neighborsForward) {
+        const neighborKey = getNodeKey(neighbor);
+        if (forwardClosedSet.has(neighborKey)) continue;
+
+        const tentativeG = currentForward.g + neighbor.weight;
+
+        if (!forwardOpenSet.includes(neighbor)) {
+          forwardOpenSet.push(neighbor);
+        } else if (tentativeG >= neighbor.g) {
+          continue;
+        }
+
+        neighbor.g = tentativeG;
+        neighbor.h = heuristic(neighbor, grid[endNode.row][endNode.col]);
+        neighbor.f = neighbor.g - neighbor.h;
+        neighbor.parent = getNodeKey(currentForward);
+
+        await visualizeNode(neighbor.row, neighbor.col, "visited");
+      }
+
+      // Backward step
+      backwardOpenSet.sort((a, b) => a.f - b.f);
+      const currentBackward = backwardOpenSet.shift()!;
+      backwardClosedSet.add(getNodeKey(currentBackward));
+
+      if (forwardClosedSet.has(getNodeKey(currentBackward))) {
+        meetingPoint = currentBackward;
+        break;
+      }
+
+      const neighborsBackward = getNeighbors(currentBackward, grid);
+      for (const neighbor of neighborsBackward) {
+        const neighborKey = getNodeKey(neighbor);
+        if (backwardClosedSet.has(neighborKey)) continue;
+
+        const tentativeG = currentBackward.g + neighbor.weight;
+
+        if (!backwardOpenSet.includes(neighbor)) {
+          backwardOpenSet.push(neighbor);
+        } else if (tentativeG >= neighbor.g) {
+          continue;
+        }
+
+        neighbor.g = tentativeG;
+        neighbor.h = heuristic(neighbor, grid[startNode.row][startNode.col]);
+        neighbor.f = neighbor.g - neighbor.h;
+        neighbor.parent = getNodeKey(currentBackward);
+
+        await visualizeNode(neighbor.row, neighbor.col, "visited");
+      }
+
+      if (meetingPoint) break;
+    }
+
+    if (meetingPoint) {
+      return reconstructBidirectionalPath(meetingPoint, grid);
+    }
+
+    return null;
+  };
+
   // Generate random obstacles
   const generateRandomObstacles = () => {
     if (isRunning) return;
@@ -968,6 +1182,13 @@ export default function Home() {
                     </SelectItem>
                     <SelectItem value="bidirectional">
                       Bidirectional Search
+                    </SelectItem>
+                    <SelectItem value="swarm">Swarm Algorithm</SelectItem>
+                    <SelectItem value="convergentSwarm">
+                      Convergent Swarm Algorithm
+                    </SelectItem>
+                    <SelectItem value="bidirectionalSwarm">
+                      Bidirectional Swarm Algorithm
                     </SelectItem>
                   </SelectContent>
                 </Select>
