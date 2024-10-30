@@ -171,7 +171,19 @@ export default function Home() {
    });
    const [showHeatmap, setShowHeatmap] = useState(false);
 
-  useEffect(() => {
+   const isPausedRef = useRef(isPaused);
+
+   useEffect(() => {
+     isPausedRef.current = isPaused;
+   }, [isPaused]);
+
+   const handlePause = () => {
+     isPausedRef.current = !isPausedRef.current;
+     setIsPaused(isPausedRef.current);
+   };
+
+  
+   useEffect(() => {
     if (typeof window !== "undefined") {
       const newRows = Math.floor((window.innerHeight - 74) / 16);
       const newCols = Math.floor((window.innerWidth - (320 + 74)) / 16);
@@ -379,10 +391,10 @@ export default function Home() {
     openSet.push(start);
 
     while (openSet.length > 0) {
-      if (isPaused) {
+      if (isPausedRef.current) {
         await new Promise<void>((resolve) => {
           const checkPause = () => {
-            if (!isPaused) resolve();
+            if (!isPausedRef.current) resolve();
             else setTimeout(checkPause, 100);
           };
           checkPause();
@@ -445,10 +457,10 @@ export default function Home() {
     distances[startKey] = 0;
 
     while (unvisited.size > 0) {
-      if (isPaused) {
+      if (isPausedRef.current) {
         await new Promise<void>((resolve) => {
           const checkPause = () => {
-            if (!isPaused) resolve();
+            if (!isPausedRef.current) resolve();
             else setTimeout(checkPause, 100);
           };
           checkPause();
@@ -506,10 +518,10 @@ export default function Home() {
     visited.add(getNodeKey(grid[startNode.row][startNode.col]));
 
     while (queue.length > 0) {
-      if (isPaused) {
+      if (isPausedRef.current) {
         await new Promise<void>((resolve) => {
           const checkPause = () => {
-            if (!isPaused) resolve();
+            if (!isPausedRef.current) resolve();
             else setTimeout(checkPause, 100);
           };
           checkPause();
@@ -548,10 +560,10 @@ export default function Home() {
     stack.push(grid[startNode.row][startNode.col]);
 
     while (stack.length > 0) {
-      if (isPaused) {
+      if (isPausedRef.current) {
         await new Promise<void>((resolve) => {
           const checkPause = () => {
-            if (!isPaused) resolve();
+            if (!isPausedRef.current) resolve();
             else setTimeout(checkPause, 100);
           };
           checkPause();
@@ -594,10 +606,10 @@ export default function Home() {
     openSet.push(grid[startNode.row][startNode.col]);
 
     while (openSet.length > 0) {
-      if (isPaused) {
+      if (isPausedRef.current) {
         await new Promise<void>((resolve) => {
           const checkPause = () => {
-            if (!isPaused) resolve();
+            if (!isPausedRef.current) resolve();
             else setTimeout(checkPause, 100);
           };
           checkPause();
@@ -648,10 +660,10 @@ export default function Home() {
     let meetingPoint: Node | null = null;
 
     while (forwardQueue.length > 0 && backwardQueue.length > 0) {
-      if (isPaused) {
+      if (isPausedRef.current) {
         await new Promise<void>((resolve) => {
           const checkPause = () => {
-            if (!isPaused) resolve();
+            if (!isPausedRef.current) resolve();
             else setTimeout(checkPause, 100);
           };
           checkPause();
@@ -970,7 +982,7 @@ export default function Home() {
                   {isRunning ? "Running..." : "Run"}
                 </Button>
                 <Button
-                  onClick={() => setIsPaused(!isPaused)}
+                  onClick={handlePause}
                   disabled={!isRunning}
                   className="flex-1"
                 >
