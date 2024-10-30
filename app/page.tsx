@@ -64,8 +64,10 @@ interface Node {
 }
 
 // Grid size
-const ROWS = 30;
-const COLS = 50;
+// const ROWS = 40;
+// const COLS = 60;
+const ROWS = ((window.innerHeight - 74) / 16);
+const COLS = ((window.innerWidth - (320 + 74)) / 16);
 
 // Create initial grid
 const createInitialGrid = (): Node[][] => {
@@ -121,7 +123,7 @@ const reconstructBidirectionalPath = (
 
   // Forward path
   while (current && current.parent) {
-    const [row, col] = current.parent.split(",").map(Number);
+    const [row, col]: any = current.parent.split(",").map(Number);
     current = grid[row][col];
     if (current && current.type !== "start" && current.type !== "end") {
       path.unshift(current);
@@ -133,7 +135,7 @@ const reconstructBidirectionalPath = (
 
   // Backward path
   while (current && current.parent) {
-    const [row, col] = current.parent.split(",").map(Number);
+    const [row, col]: any = current.parent.split(",").map(Number);
     current = grid[row][col];
     if (current && current.type !== "start" && current.type !== "end") {
       path.push(current);
@@ -152,13 +154,13 @@ export default function Home() {
   >("astar");
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [obstaclePercentage, setObstaclePercentage] = useState(20);
+  const [obstaclePercentage, setObstaclePercentage] = useState(0);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawMode, setDrawMode] = useState<
     "wall" | "weight" | "erase" | "start" | "end"
-  >("wall");
-  const [visualizationSpeed, setVisualizationSpeed] = useState(10);
-  const [weightValue, setWeightValue] = useState(5);
+  >("start");
+  const [visualizationSpeed, setVisualizationSpeed] = useState(80);
+  const [weightValue, setWeightValue] = useState(0);
   const animationFrameId = useRef<number | null>(null);
   const [stats, setStats] = useState({
     visitedNodes: 0,
@@ -206,6 +208,7 @@ export default function Home() {
         setNodeType(startNode.row, startNode.col, "empty");
       }
       setNodeType(row, col, "start");
+      setDrawMode("end");
     } else if (drawMode === "end" && node.type !== "end") {
       if (endNode) {
         setNodeType(endNode.row, endNode.col, "empty");
@@ -281,9 +284,9 @@ export default function Home() {
     setStats({ visitedNodes: 0, pathLength: 0, executionTime: 0 });
 
     // Reset previous paths and visited nodes
-    setGrid((prevGrid) => {
-      const newGrid = prevGrid.map((row) =>
-        row.map((node) => {
+    setGrid((prevGrid: any) => {
+      const newGrid = prevGrid.map((row: any) =>
+        row.map((node: any) => {
           if (node.type === "visited" || node.type === "path") {
             return { ...node, type: "empty", parent: null, f: 0, g: 0, h: 0 };
           }
@@ -437,7 +440,7 @@ export default function Home() {
       }
 
       // Select the node with the smallest distance
-      let currentKey: string | null = null;
+      let currentKey: string | any;
       let smallestDistance = Infinity;
       unvisited.forEach((key) => {
         if (distances[key] < smallestDistance) {
@@ -829,6 +832,22 @@ export default function Home() {
     }
   };
 
+  // Set up the drawing interaction
+  const handleMouseDown = (row: number, col: number) => {
+    setIsDrawing(true);
+    handleNodeInteraction(row, col); // Start interaction on mouse down
+  };
+
+  const handleMouseUp = () => {
+    setIsDrawing(false); // Stop drawing when the mouse button is released
+  };
+
+  const handleMouseEnter = (row: number, col: number) => {
+    if (isDrawing) {
+      handleNodeInteraction(row, col); // Only interact if the mouse is being dragged
+    }
+  };
+
   // Render grid
   const renderGrid = () => {
     return grid.map((row, rowIndex) => (
@@ -871,16 +890,9 @@ export default function Home() {
             <div
               key={`${rowIndex}-${colIndex}`}
               className={`w-4 h-4 border border-gray-200 ${bgColor} cursor-pointer`}
-              onMouseDown={() => {
-                setIsDrawing(true);
-                handleNodeInteraction(rowIndex, colIndex);
-              }}
-              onMouseUp={() => setIsDrawing(false)}
-              onMouseEnter={() =>
-                isDrawing && handleNodeInteraction(rowIndex, colIndex)
-              }
-              onMouseLeave={() => setIsDrawing(false)}
-              onClick={() => handleNodeInteraction(rowIndex, colIndex)}
+              onMouseDown={() => handleMouseDown(rowIndex, colIndex)}
+              onMouseUp={handleMouseUp}
+              onMouseEnter={() => handleMouseEnter(rowIndex, colIndex)}
             />
           );
         })}
@@ -1013,6 +1025,20 @@ export default function Home() {
               <div className="flex items-center space-x-2">
                 <Label>Draw Mode:</Label>
                 <Button
+                  variant={drawMode === "start" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDrawMode("start")}
+                >
+                  <Flag className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={drawMode === "end" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDrawMode("end")}
+                >
+                  <Target className="w-4 h-4" />
+                </Button>
+                <Button
                   variant={drawMode === "wall" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setDrawMode("wall")}
@@ -1032,20 +1058,6 @@ export default function Home() {
                   onClick={() => setDrawMode("erase")}
                 >
                   <Eraser className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={drawMode === "start" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setDrawMode("start")}
-                >
-                  <Flag className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={drawMode === "end" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setDrawMode("end")}
-                >
-                  <Target className="w-4 h-4" />
                 </Button>
               </div>
               <div className="flex items-center space-x-2">
@@ -1099,12 +1111,12 @@ export default function Home() {
           </TabsContent>
         </Tabs>
       </div>
-      <div className="flex-1 p-4 overflow-auto">
-        <div className="border border-gray-300 bg-white p-2 inline-block">
+      <div className="flex-1 p-4 overflow-auto flex justify-center items-center">
+        <div className="border border-gray-300 bg-white p-2 inline-block rounded-lg">
           {renderGrid()}
         </div>
       </div>
-      <TooltipProvider>
+      {/* <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -1125,7 +1137,7 @@ export default function Home() {
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <ToastContainer position="bottom-right" />
+      <ToastContainer position="bottom-right" /> */}
     </div>
   );
 }
