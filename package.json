@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@datastructures-js/priority-queue": "^6.3.1",
     "@radix-ui/react-label": "^2.1.0",
     "@radix-ui/react-select": "^2.1.2",
     "@radix-ui/react-slider": "^1.2.1",

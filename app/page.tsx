@@ -32,14 +32,11 @@ import {
   Download,
   Upload,
 } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+
+// Import a priority queue implementation
+import { MinPriorityQueue } from "@datastructures-js/priority-queue";
 
 // Node types
 type NodeType =
@@ -60,16 +57,10 @@ interface Node {
   g: number;
   h: number;
   weight: number;
-  parent: string | null; // Using string keys to identify parent nodes
+  parent: string | null;
 }
 
 // Grid size
-// const rows = 40;
-// const cols = 60;
-// const rows = ((window.innerHeight - 74) / 16);
-// const cols = ((window.innerWidth - (320 + 74)) / 16);
-
-// Create initial grid
 const createInitialGrid = (rows: number, cols: number): Node[][] => {
   const grid: Node[][] = [];
   for (let row = 0; row < rows; row++) {
@@ -104,7 +95,7 @@ const reconstructPath = (endNode: Node, grid: Node[][]): Node[] => {
   const path: Node[] = [];
   let current: Node | null = endNode;
   while (current && current.parent) {
-    const [row, col]: any = current.parent.split(",").map(Number);
+    const [row, col] = current.parent.split(",").map(Number);
     current = grid[row][col];
     if (current && current.type !== "start" && current.type !== "end") {
       path.unshift(current);
@@ -116,30 +107,40 @@ const reconstructPath = (endNode: Node, grid: Node[][]): Node[] => {
 // Reconstruct bidirectional path
 const reconstructBidirectionalPath = (
   meetingPoint: Node,
+  forwardParents: Map<string, string | null>,
+  backwardParents: Map<string, string | null>,
   grid: Node[][]
 ): Node[] => {
   const path: Node[] = [];
-  let current: Node | null = meetingPoint;
+  let currentKey: string | null = getNodeKey(meetingPoint);
 
-  // Forward path
-  while (current && current.parent) {
-    const [row, col]: any = current.parent.split(",").map(Number);
-    current = grid[row][col];
-    if (current && current.type !== "start" && current.type !== "end") {
-      path.unshift(current);
+  // Reconstruct path from meeting point to start
+  while (currentKey) {
+    const [row, col] = currentKey.split(",").map(Number);
+    const currentNode = grid[row][col];
+    if (
+      currentNode &&
+      currentNode.type !== "start" &&
+      currentNode.type !== "end"
+    ) {
+      path.unshift(currentNode);
     }
+    currentKey = forwardParents.get(currentKey) || null;
   }
 
-  // Reset current to meeting point for backward path
-  current = meetingPoint;
-
-  // Backward path
-  while (current && current.parent) {
-    const [row, col]: any = current.parent.split(",").map(Number);
-    current = grid[row][col];
-    if (current && current.type !== "start" && current.type !== "end") {
-      path.push(current);
+  // Reconstruct path from meeting point to end
+  currentKey = backwardParents.get(getNodeKey(meetingPoint));
+  while (currentKey) {
+    const [row, col] = currentKey.split(",").map(Number);
+    const currentNode = grid[row][col];
+    if (
+      currentNode &&
+      currentNode.type !== "start" &&
+      currentNode.type !== "end"
+    ) {
+      path.push(currentNode);
     }
+    currentKey = backwardParents.get(currentKey) || null;
   }
 
   return path;
@@ -171,7 +172,6 @@ export default function Home() {
   >("start");
   const [visualizationSpeed, setVisualizationSpeed] = useState(80);
   const [weightValue, setWeightValue] = useState(1);
-  const animationFrameId = useRef<number | null>(null);
   const [stats, setStats] = useState({
     visitedNodes: 0,
     pathLength: 0,
@@ -231,7 +231,6 @@ export default function Home() {
     }
   };
 
-  // Handle node interaction
   // Handle node interaction
   const handleNodeInteraction = (row: number, col: number) => {
     if (isRunning) return;
@@ -399,35 +398,30 @@ export default function Home() {
     });
   };
 
-  // A* algorithm
+  // A* algorithm with priority queue
   const astar = async (): Promise<Node[] | null> => {
     if (!startNode || !endNode) return null;
 
-    const openSet: Node[] = [];
+    const openSet = new MinPriorityQueue<Node>((node) => node.f);
     const closedSet: Set<string> = new Set();
-    const cameFrom: { [key: string]: string | null } = {};
 
     // Initialize start node
     const start = grid[startNode.row][startNode.col];
     start.g = 0;
     start.h = heuristic(start, grid[endNode.row][endNode.col]);
     start.f = start.g + start.h;
-    openSet.push(start);
+    openSet.enqueue(start);
 
-    while (openSet.length > 0) {
+    const openSetMap = new Map<string, Node>();
+    openSetMap.set(getNodeKey(start), start);
+
+    while (!openSet.isEmpty()) {
       if (isPausedRef.current) {
-        await new Promise<void>((resolve) => {
-          const checkPause = () => {
-            if (!isPausedRef.current) resolve();
-            else setTimeout(checkPause, 100);
-          };
-          checkPause();
-        });
+        await pauseAlgorithm();
       }
 
-      // Get node with lowest f
-      openSet.sort((a, b) => a.f - b.f);
-      const current = openSet.shift()!;
+      const current = openSet.dequeue()!;
+      openSetMap.delete(getNodeKey(current));
 
       if (current.row === endNode.row && current.col === endNode.col) {
         return reconstructPath(current, grid);
@@ -442,89 +436,115 @@ export default function Home() {
 
         const tentativeG = current.g + neighbor.weight;
 
-        if (!openSet.includes(neighbor)) {
-          openSet.push(neighbor);
-        } else if (tentativeG >= neighbor.g) {
-          continue;
+        if (tentativeG < neighbor.g || !openSetMap.has(neighborKey)) {
+          neighbor.g = tentativeG;
+          neighbor.h = heuristic(neighbor, grid[endNode.row][endNode.col]);
+          neighbor.f = neighbor.g + neighbor.h;
+          neighbor.parent = getNodeKey(current);
+
+          if (!openSetMap.has(neighborKey)) {
+            openSet.enqueue(neighbor);
+            openSetMap.set(neighborKey, neighbor);
+            await visualizeNode(neighbor.row, neighbor.col, "visited");
+          }
         }
-
-        neighbor.g = tentativeG;
-        neighbor.h = heuristic(neighbor, grid[endNode.row][endNode.col]);
-        neighbor.f = neighbor.g + neighbor.h;
-        cameFrom[getNodeKey(neighbor)] = getNodeKey(current);
-
-        neighbor.parent = getNodeKey(current);
-
-        await visualizeNode(neighbor.row, neighbor.col, "visited");
       }
     }
 
     return null;
   };
 
-  // Dijkstra's algorithm
+  // Dijkstra's algorithm with priority queue
   const dijkstra = async (): Promise<Node[] | null> => {
     if (!startNode || !endNode) return null;
 
-    const unvisited = new Set<string>();
-    const distances: { [key: string]: number } = {};
-    const cameFrom: { [key: string]: string | null } = {};
+    const openSet = new MinPriorityQueue<Node>((node) => node.g);
+    const closedSet: Set<string> = new Set();
 
-    grid.forEach((row) => {
-      row.forEach((node) => {
-        const key = getNodeKey(node);
-        distances[key] = Infinity;
-        cameFrom[key] = null;
-        unvisited.add(key);
-      });
-    });
+    // Initialize start node
+    const start = grid[startNode.row][startNode.col];
+    start.g = 0;
+    openSet.enqueue(start);
 
-    const startKey = getNodeKey(grid[startNode.row][startNode.col]);
-    distances[startKey] = 0;
+    const openSetMap = new Map<string, Node>();
+    openSetMap.set(getNodeKey(start), start);
 
-    while (unvisited.size > 0) {
+    while (!openSet.isEmpty()) {
       if (isPausedRef.current) {
-        await new Promise<void>((resolve) => {
-          const checkPause = () => {
-            if (!isPausedRef.current) resolve();
-            else setTimeout(checkPause, 100);
-          };
-          checkPause();
-        });
+        await pauseAlgorithm();
       }
 
-      // Select the node with the smallest distance
-      let currentKey: string | any;
-      let smallestDistance = Infinity;
-      unvisited.forEach((key) => {
-        if (distances[key] < smallestDistance) {
-          smallestDistance = distances[key];
-          currentKey = key;
-        }
-      });
+      const current = openSet.dequeue()!;
+      openSetMap.delete(getNodeKey(current));
 
-      if (!currentKey) break;
-
-      if (currentKey === getNodeKey(grid[endNode.row][endNode.col])) {
-        const end = grid[endNode.row][endNode.col];
-        return reconstructPath(end, grid);
+      if (current.row === endNode.row && current.col === endNode.col) {
+        return reconstructPath(current, grid);
       }
 
-      unvisited.delete(currentKey);
-      const [currentRow, currentCol] = currentKey.split(",").map(Number);
-      const currentNode = grid[currentRow][currentCol];
+      closedSet.add(getNodeKey(current));
 
-      const neighbors = getNeighbors(currentNode, grid);
+      const neighbors = getNeighbors(current, grid);
       for (const neighbor of neighbors) {
         const neighborKey = getNodeKey(neighbor);
-        if (!unvisited.has(neighborKey)) continue;
+        if (closedSet.has(neighborKey)) continue;
 
-        const alt = distances[currentKey] + neighbor.weight;
-        if (alt < distances[neighborKey]) {
-          distances[neighborKey] = alt;
-          cameFrom[neighborKey] = currentKey;
-          neighbor.parent = currentKey;
+        const tentativeG = current.g + neighbor.weight;
 
+        if (tentativeG < neighbor.g || !openSetMap.has(neighborKey)) {
+          neighbor.g = tentativeG;
+          neighbor.parent = getNodeKey(current);
+
+          if (!openSetMap.has(neighborKey)) {
+            openSet.enqueue(neighbor);
+            openSetMap.set(neighborKey, neighbor);
+            await visualizeNode(neighbor.row, neighbor.col, "visited");
+          }
+        }
+      }
+    }
+
+    return null;
+  };
+
+  // Greedy Best-First Search with priority queue
+  const greedyBestFirstSearch = async (): Promise<Node[] | null> => {
+    if (!startNode || !endNode) return null;
+
+    const openSet = new MinPriorityQueue<Node>((node) => node.h);
+    const closedSet: Set<string> = new Set();
+
+    const start = grid[startNode.row][startNode.col];
+    start.h = heuristic(start, grid[endNode.row][endNode.col]);
+    openSet.enqueue(start);
+
+    const openSetMap = new Map<string, Node>();
+    openSetMap.set(getNodeKey(start), start);
+
+    while (!openSet.isEmpty()) {
+      if (isPausedRef.current) {
+        await pauseAlgorithm();
+      }
+
+      const current = openSet.dequeue()!;
+      openSetMap.delete(getNodeKey(current));
+
+      if (current.row === endNode.row && current.col === endNode.col) {
+        return reconstructPath(current, grid);
+      }
+
+      closedSet.add(getNodeKey(current));
+
+      const neighbors = getNeighbors(current, grid);
+      for (const neighbor of neighbors) {
+        const neighborKey = getNodeKey(neighbor);
+        if (closedSet.has(neighborKey)) continue;
+
+        neighbor.h = heuristic(neighbor, grid[endNode.row][endNode.col]);
+        neighbor.parent = getNodeKey(current);
+
+        if (!openSetMap.has(neighborKey)) {
+          openSet.enqueue(neighbor);
+          openSetMap.set(neighborKey, neighbor);
           await visualizeNode(neighbor.row, neighbor.col, "visited");
         }
       }
@@ -533,8 +553,9 @@ export default function Home() {
     return null;
   };
 
-  // Breadth-First Search (BFS) algorithm
+  // BFS algorithm
   const bfs = async (): Promise<Node[] | null> => {
+    // No changes needed; BFS is correct
     if (!startNode || !endNode) return null;
 
     const queue: Node[] = [];
@@ -545,13 +566,7 @@ export default function Home() {
 
     while (queue.length > 0) {
       if (isPausedRef.current) {
-        await new Promise<void>((resolve) => {
-          const checkPause = () => {
-            if (!isPausedRef.current) resolve();
-            else setTimeout(checkPause, 100);
-          };
-          checkPause();
-        });
+        await pauseAlgorithm();
       }
 
       const current = queue.shift()!;
@@ -576,8 +591,9 @@ export default function Home() {
     return null;
   };
 
-  // Depth-First Search (DFS) algorithm
+  // DFS algorithm
   const dfs = async (): Promise<Node[] | null> => {
+    // No significant changes needed; DFS is correct
     if (!startNode || !endNode) return null;
 
     const stack: Node[] = [];
@@ -587,13 +603,7 @@ export default function Home() {
 
     while (stack.length > 0) {
       if (isPausedRef.current) {
-        await new Promise<void>((resolve) => {
-          const checkPause = () => {
-            if (!isPausedRef.current) resolve();
-            else setTimeout(checkPause, 100);
-          };
-          checkPause();
-        });
+        await pauseAlgorithm();
       }
 
       const current = stack.pop()!;
@@ -609,8 +619,9 @@ export default function Home() {
       await visualizeNode(current.row, current.col, "visited");
 
       const neighbors = getNeighbors(current, grid);
-      for (let i = neighbors.length - 1; i >= 0; i--) {
-        const neighbor = neighbors[i];
+      // Randomize neighbor order
+      neighbors.sort(() => Math.random() - 0.5);
+      for (const neighbor of neighbors) {
         const neighborKey = getNodeKey(neighbor);
         if (!visited.has(neighborKey)) {
           neighbor.parent = currentKey;
@@ -622,56 +633,7 @@ export default function Home() {
     return null;
   };
 
-  // Greedy Best-First Search algorithm
-  const greedyBestFirstSearch = async (): Promise<Node[] | null> => {
-    if (!startNode || !endNode) return null;
-
-    const openSet: Node[] = [];
-    const closedSet: Set<string> = new Set();
-
-    openSet.push(grid[startNode.row][startNode.col]);
-
-    while (openSet.length > 0) {
-      if (isPausedRef.current) {
-        await new Promise<void>((resolve) => {
-          const checkPause = () => {
-            if (!isPausedRef.current) resolve();
-            else setTimeout(checkPause, 100);
-          };
-          checkPause();
-        });
-      }
-
-      // Select node with lowest heuristic
-      openSet.sort(
-        (a, b) =>
-          heuristic(a, grid[endNode.row][endNode.col]) -
-          heuristic(b, grid[endNode.row][endNode.col])
-      );
-      const current = openSet.shift()!;
-
-      if (current.row === endNode.row && current.col === endNode.col) {
-        return reconstructPath(current, grid);
-      }
-
-      closedSet.add(getNodeKey(current));
-
-      const neighbors = getNeighbors(current, grid);
-      for (const neighbor of neighbors) {
-        const neighborKey = getNodeKey(neighbor);
-        if (closedSet.has(neighborKey)) continue;
-        if (!openSet.includes(neighbor)) {
-          neighbor.parent = getNodeKey(current);
-          openSet.push(neighbor);
-          await visualizeNode(neighbor.row, neighbor.col, "visited");
-        }
-      }
-    }
-
-    return null;
-  };
-
-  // Bidirectional Search algorithm
+  // Bidirectional Search algorithm with fixed path reconstruction
   const bidirectionalSearch = async (): Promise<Node[] | null> => {
     if (!startNode || !endNode) return null;
 
@@ -683,26 +645,27 @@ export default function Home() {
     const backwardVisited: Set<string> = new Set([
       getNodeKey(grid[endNode.row][endNode.col]),
     ]);
+
+    const forwardParents = new Map<string, string | null>();
+    const backwardParents = new Map<string, string | null>();
+
+    forwardParents.set(getNodeKey(grid[startNode.row][startNode.col]), null);
+    backwardParents.set(getNodeKey(grid[endNode.row][endNode.col]), null);
+
     let meetingPoint: Node | null = null;
 
     while (forwardQueue.length > 0 && backwardQueue.length > 0) {
       if (isPausedRef.current) {
-        await new Promise<void>((resolve) => {
-          const checkPause = () => {
-            if (!isPausedRef.current) resolve();
-            else setTimeout(checkPause, 100);
-          };
-          checkPause();
-        });
+        await pauseAlgorithm();
       }
 
       // Forward step
       const currentForward = forwardQueue.shift()!;
-      if (
-        currentForward.row === endNode.row &&
-        currentForward.col === endNode.col
-      ) {
-        return reconstructPath(currentForward, grid);
+      const currentForwardKey = getNodeKey(currentForward);
+
+      if (backwardVisited.has(currentForwardKey)) {
+        meetingPoint = currentForward;
+        break;
       }
 
       const neighborsForward = getNeighbors(currentForward, grid);
@@ -710,7 +673,7 @@ export default function Home() {
         const neighborKey = getNodeKey(neighbor);
         if (!forwardVisited.has(neighborKey)) {
           forwardVisited.add(neighborKey);
-          neighbor.parent = getNodeKey(currentForward);
+          forwardParents.set(neighborKey, currentForwardKey);
           forwardQueue.push(neighbor);
           await visualizeNode(neighbor.row, neighbor.col, "visited");
 
@@ -725,11 +688,11 @@ export default function Home() {
 
       // Backward step
       const currentBackward = backwardQueue.shift()!;
-      if (
-        currentBackward.row === startNode.row &&
-        currentBackward.col === startNode.col
-      ) {
-        return reconstructPath(currentBackward, grid);
+      const currentBackwardKey = getNodeKey(currentBackward);
+
+      if (forwardVisited.has(currentBackwardKey)) {
+        meetingPoint = currentBackward;
+        break;
       }
 
       const neighborsBackward = getNeighbors(currentBackward, grid);
@@ -737,7 +700,7 @@ export default function Home() {
         const neighborKey = getNodeKey(neighbor);
         if (!backwardVisited.has(neighborKey)) {
           backwardVisited.add(neighborKey);
-          neighbor.parent = getNodeKey(currentBackward);
+          backwardParents.set(neighborKey, currentBackwardKey);
           backwardQueue.push(neighbor);
           await visualizeNode(neighbor.row, neighbor.col, "visited");
 
@@ -752,31 +715,40 @@ export default function Home() {
     }
 
     if (meetingPoint) {
-      return reconstructBidirectionalPath(meetingPoint, grid);
+      return reconstructBidirectionalPath(
+        meetingPoint,
+        forwardParents,
+        backwardParents,
+        grid
+      );
     }
 
     return null;
   };
 
+  // Swarm Algorithm
   const swarm = async (): Promise<Node[] | null> => {
     if (!startNode || !endNode) return null;
 
-    const openSet: Node[] = [];
+    const openSet = new MinPriorityQueue<Node>((node) => node.f);
     const closedSet: Set<string> = new Set();
 
     const start = grid[startNode.row][startNode.col];
     start.g = 0;
     start.h = heuristic(start, grid[endNode.row][endNode.col]);
     start.f = start.g - start.h;
-    openSet.push(start);
+    openSet.enqueue(start);
 
-    while (openSet.length > 0) {
+    const openSetMap = new Map<string, Node>();
+    openSetMap.set(getNodeKey(start), start);
+
+    while (!openSet.isEmpty()) {
       if (isPausedRef.current) {
         await pauseAlgorithm();
       }
 
-      openSet.sort((a, b) => a.f - b.f);
-      const current = openSet.shift()!;
+      const current = openSet.dequeue()!;
+      openSetMap.delete(getNodeKey(current));
 
       if (current.row === endNode.row && current.col === endNode.col) {
         return reconstructPath(current, grid);
@@ -791,43 +763,48 @@ export default function Home() {
 
         const tentativeG = current.g + neighbor.weight;
 
-        if (!openSet.includes(neighbor)) {
-          openSet.push(neighbor);
-        } else if (tentativeG >= neighbor.g) {
-          continue;
+        if (tentativeG < neighbor.g || !openSetMap.has(neighborKey)) {
+          neighbor.g = tentativeG;
+          neighbor.h = heuristic(neighbor, grid[endNode.row][endNode.col]);
+          neighbor.f = neighbor.g - neighbor.h;
+          neighbor.parent = getNodeKey(current);
+
+          if (!openSetMap.has(neighborKey)) {
+            openSet.enqueue(neighbor);
+            openSetMap.set(neighborKey, neighbor);
+            await visualizeNode(neighbor.row, neighbor.col, "visited");
+          }
         }
-
-        neighbor.g = tentativeG;
-        neighbor.h = heuristic(neighbor, grid[endNode.row][endNode.col]);
-        neighbor.f = neighbor.g - neighbor.h;
-        neighbor.parent = getNodeKey(current);
-
-        await visualizeNode(neighbor.row, neighbor.col, "visited");
       }
     }
 
     return null;
   };
 
+  // Convergent Swarm Algorithm (Adjusted to differ from A*)
   const convergentSwarm = async (): Promise<Node[] | null> => {
     if (!startNode || !endNode) return null;
 
-    const openSet: Node[] = [];
+    const weightFactor = 1.2; // Adjust this factor to change the algorithm's behavior
+    const openSet = new MinPriorityQueue<Node>((node) => node.f);
     const closedSet: Set<string> = new Set();
 
     const start = grid[startNode.row][startNode.col];
     start.g = 0;
     start.h = heuristic(start, grid[endNode.row][endNode.col]);
-    start.f = start.g + start.h;
-    openSet.push(start);
+    start.f = start.g + weightFactor * start.h;
+    openSet.enqueue(start);
 
-    while (openSet.length > 0) {
+    const openSetMap = new Map<string, Node>();
+    openSetMap.set(getNodeKey(start), start);
+
+    while (!openSet.isEmpty()) {
       if (isPausedRef.current) {
         await pauseAlgorithm();
       }
 
-      openSet.sort((a, b) => a.g + a.h - (b.g + b.h));
-      const current = openSet.shift()!;
+      const current = openSet.dequeue()!;
+      openSetMap.delete(getNodeKey(current));
 
       if (current.row === endNode.row && current.col === endNode.col) {
         return reconstructPath(current, grid);
@@ -842,44 +819,63 @@ export default function Home() {
 
         const tentativeG = current.g + neighbor.weight;
 
-        if (!openSet.includes(neighbor)) {
-          openSet.push(neighbor);
-        } else if (tentativeG >= neighbor.g) {
-          continue;
+        if (tentativeG < neighbor.g || !openSetMap.has(neighborKey)) {
+          neighbor.g = tentativeG;
+          neighbor.h = heuristic(neighbor, grid[endNode.row][endNode.col]);
+          neighbor.f = neighbor.g + weightFactor * neighbor.h;
+          neighbor.parent = getNodeKey(current);
+
+          if (!openSetMap.has(neighborKey)) {
+            openSet.enqueue(neighbor);
+            openSetMap.set(neighborKey, neighbor);
+            await visualizeNode(neighbor.row, neighbor.col, "visited");
+          }
         }
-
-        neighbor.g = tentativeG;
-        neighbor.h = heuristic(neighbor, grid[endNode.row][endNode.col]);
-        neighbor.f = neighbor.g + neighbor.h;
-        neighbor.parent = getNodeKey(current);
-
-        await visualizeNode(neighbor.row, neighbor.col, "visited");
       }
     }
 
     return null;
   };
 
+  // Bidirectional Swarm Algorithm with fixed path reconstruction
   const bidirectionalSwarm = async (): Promise<Node[] | null> => {
     if (!startNode || !endNode) return null;
 
-    const forwardOpenSet: Node[] = [grid[startNode.row][startNode.col]];
-    const backwardOpenSet: Node[] = [grid[endNode.row][endNode.col]];
+    const forwardOpenSet = new MinPriorityQueue<Node>((node) => node.f);
+    const backwardOpenSet = new MinPriorityQueue<Node>((node) => node.f);
     const forwardClosedSet: Set<string> = new Set();
     const backwardClosedSet: Set<string> = new Set();
+
+    const forwardParents = new Map<string, string | null>();
+    const backwardParents = new Map<string, string | null>();
+
+    const start = grid[startNode.row][startNode.col];
+    start.g = 0;
+    start.h = heuristic(start, grid[endNode.row][endNode.col]);
+    start.f = start.g - start.h;
+    forwardOpenSet.enqueue(start);
+    forwardParents.set(getNodeKey(start), null);
+
+    const end = grid[endNode.row][endNode.col];
+    end.g = 0;
+    end.h = heuristic(end, grid[startNode.row][startNode.col]);
+    end.f = end.g - end.h;
+    backwardOpenSet.enqueue(end);
+    backwardParents.set(getNodeKey(end), null);
+
     let meetingPoint: Node | null = null;
 
-    while (forwardOpenSet.length > 0 && backwardOpenSet.length > 0) {
+    while (!forwardOpenSet.isEmpty() && !backwardOpenSet.isEmpty()) {
       if (isPausedRef.current) {
         await pauseAlgorithm();
       }
 
       // Forward step
-      forwardOpenSet.sort((a, b) => a.f - b.f);
-      const currentForward = forwardOpenSet.shift()!;
-      forwardClosedSet.add(getNodeKey(currentForward));
+      const currentForward = forwardOpenSet.dequeue()!;
+      const currentForwardKey = getNodeKey(currentForward);
+      forwardClosedSet.add(currentForwardKey);
 
-      if (backwardClosedSet.has(getNodeKey(currentForward))) {
+      if (backwardClosedSet.has(currentForwardKey)) {
         meetingPoint = currentForward;
         break;
       }
@@ -891,26 +887,30 @@ export default function Home() {
 
         const tentativeG = currentForward.g + neighbor.weight;
 
-        if (!forwardOpenSet.includes(neighbor)) {
-          forwardOpenSet.push(neighbor);
-        } else if (tentativeG >= neighbor.g) {
-          continue;
+        if (tentativeG < neighbor.g) {
+          neighbor.g = tentativeG;
+          neighbor.h = heuristic(neighbor, grid[endNode.row][endNode.col]);
+          neighbor.f = neighbor.g - neighbor.h;
+          forwardParents.set(neighborKey, currentForwardKey);
+
+          forwardOpenSet.enqueue(neighbor);
+          await visualizeNode(neighbor.row, neighbor.col, "visited");
+
+          if (backwardClosedSet.has(neighborKey)) {
+            meetingPoint = neighbor;
+            break;
+          }
         }
-
-        neighbor.g = tentativeG;
-        neighbor.h = heuristic(neighbor, grid[endNode.row][endNode.col]);
-        neighbor.f = neighbor.g - neighbor.h;
-        neighbor.parent = getNodeKey(currentForward);
-
-        await visualizeNode(neighbor.row, neighbor.col, "visited");
       }
 
-      // Backward step
-      backwardOpenSet.sort((a, b) => a.f - b.f);
-      const currentBackward = backwardOpenSet.shift()!;
-      backwardClosedSet.add(getNodeKey(currentBackward));
+      if (meetingPoint) break;
 
-      if (forwardClosedSet.has(getNodeKey(currentBackward))) {
+      // Backward step
+      const currentBackward = backwardOpenSet.dequeue()!;
+      const currentBackwardKey = getNodeKey(currentBackward);
+      backwardClosedSet.add(currentBackwardKey);
+
+      if (forwardClosedSet.has(currentBackwardKey)) {
         meetingPoint = currentBackward;
         break;
       }
@@ -922,25 +922,32 @@ export default function Home() {
 
         const tentativeG = currentBackward.g + neighbor.weight;
 
-        if (!backwardOpenSet.includes(neighbor)) {
-          backwardOpenSet.push(neighbor);
-        } else if (tentativeG >= neighbor.g) {
-          continue;
+        if (tentativeG < neighbor.g) {
+          neighbor.g = tentativeG;
+          neighbor.h = heuristic(neighbor, grid[startNode.row][startNode.col]);
+          neighbor.f = neighbor.g - neighbor.h;
+          backwardParents.set(neighborKey, currentBackwardKey);
+
+          backwardOpenSet.enqueue(neighbor);
+          await visualizeNode(neighbor.row, neighbor.col, "visited");
+
+          if (forwardClosedSet.has(neighborKey)) {
+            meetingPoint = neighbor;
+            break;
+          }
         }
-
-        neighbor.g = tentativeG;
-        neighbor.h = heuristic(neighbor, grid[startNode.row][startNode.col]);
-        neighbor.f = neighbor.g - neighbor.h;
-        neighbor.parent = getNodeKey(currentBackward);
-
-        await visualizeNode(neighbor.row, neighbor.col, "visited");
       }
 
       if (meetingPoint) break;
     }
 
     if (meetingPoint) {
-      return reconstructBidirectionalPath(meetingPoint, grid);
+      return reconstructBidirectionalPath(
+        meetingPoint,
+        forwardParents,
+        backwardParents,
+        grid
+      );
     }
 
     return null;
@@ -988,7 +995,7 @@ export default function Home() {
 
     while (stack.length > 0) {
       const [currentRow, currentCol] = stack[stack.length - 1];
-      const neighbors: [number, number][] | any = [
+      const neighbors: [number, number][] = [
         [currentRow - 2, currentCol],
         [currentRow + 2, currentCol],
         [currentRow, currentCol - 2],
@@ -1157,15 +1164,20 @@ export default function Home() {
                 <Label htmlFor="algorithm">Algorithm</Label>
                 <Select
                   value={algorithm}
-                  onValueChange={(
-                    value:
-                      | "astar"
-                      | "dijkstra"
-                      | "bfs"
-                      | "dfs"
-                      | "greedy"
-                      | "bidirectional"
-                  ) => setAlgorithm(value)}
+                  onValueChange={(value) =>
+                    setAlgorithm(
+                      value as
+                        | "astar"
+                        | "dijkstra"
+                        | "bfs"
+                        | "dfs"
+                        | "greedy"
+                        | "bidirectional"
+                        | "swarm"
+                        | "convergentSwarm"
+                        | "bidirectionalSwarm"
+                    )
+                  }
                 >
                   <SelectTrigger id="algorithm">
                     <SelectValue placeholder="Select Algorithm" />
