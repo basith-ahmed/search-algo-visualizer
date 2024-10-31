@@ -95,7 +95,7 @@ const reconstructPath = (endNode: Node, grid: Node[][]): Node[] => {
   const path: Node[] = [];
   let current: Node | null = endNode;
   while (current && current.parent) {
-    const [row, col] = current.parent.split(",").map(Number);
+    const [row, col]: any = current.parent.split(",").map(Number);
     current = grid[row][col];
     if (current && current.type !== "start" && current.type !== "end") {
       path.unshift(current);
@@ -112,7 +112,7 @@ const reconstructBidirectionalPath = (
   grid: Node[][]
 ): Node[] => {
   const path: Node[] = [];
-  let currentKey: string | null = getNodeKey(meetingPoint);
+  let currentKey: string | any = getNodeKey(meetingPoint);
 
   // Reconstruct path from meeting point to start
   while (currentKey) {
@@ -995,7 +995,7 @@ export default function Home() {
 
     while (stack.length > 0) {
       const [currentRow, currentCol] = stack[stack.length - 1];
-      const neighbors: [number, number][] = [
+      const neighbors: [number, number][] | any = [
         [currentRow - 2, currentCol],
         [currentRow + 2, currentCol],
         [currentRow, currentCol - 2],
