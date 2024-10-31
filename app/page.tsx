@@ -236,7 +236,7 @@ export default function Home() {
     if (type === "start") {
       // Calculate heuristic from start to end if end exists
       const end = endNode ? grid[endNode.row][endNode.col] : null;
-      const h = end ? heuristic({ row, col }, end) : 0;
+      const h = end ? heuristic(grid[row][col], end) : 0;
 
       setStartNode({
         row,
@@ -261,7 +261,7 @@ export default function Home() {
     } else if (type === "end") {
       // Recalculate heuristic for start node if it exists
       const start = startNode ? grid[startNode.row][startNode.col] : null;
-      const h = start ? heuristic(start, { row, col }) : 0;
+      const h = start ? heuristic(start, grid[row][col]) : 0;
 
       setEndNode({
         row,
