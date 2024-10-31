@@ -70,9 +70,9 @@ const createInitialGrid = (rows: number, cols: number): Node[][] => {
         row,
         col,
         type: "empty",
-        f: 0,
-        g: 0,
-        h: 0,
+        f: Infinity, // Initialize to Infinity
+        g: Infinity, // Initialize to Infinity
+        h: 0, // Will be set when needed
         weight: 1,
         parent: null,
       });
@@ -84,7 +84,7 @@ const createInitialGrid = (rows: number, cols: number): Node[][] => {
 
 // Heuristic function for A*
 const heuristic = (a: Node, b: Node): number => {
-  return Math.abs(a.row - b.row) + Math.abs(a.col - b.col);
+  return Math.abs(a.row - b.row) + Math.abs(a.col - b.col); // Manhattan distance
 };
 
 // Helper to get node key
@@ -104,9 +104,6 @@ const reconstructPath = (endNode: Node, grid: Node[][]): Node[] => {
       totalCost += current.weight; // Accumulate weight
     }
   }
-
-  // Assuming you have access to 'setStats' here; alternatively, handle it in 'runAlgorithm'
-  // setStats((prev) => ({ ...prev, pathCost: totalCost }));
 
   return path;
 };
@@ -153,6 +150,7 @@ const reconstructBidirectionalPath = (
     currentKey = backwardParents.get(currentKey) || null;
   }
 
+  // Update path cost
   // Assuming you have access to 'setStats' here; alternatively, handle it in 'runAlgorithm'
   // setStats((prev) => ({ ...prev, pathCost: totalCost }));
 
@@ -236,11 +234,57 @@ export default function Home() {
     });
 
     if (type === "start") {
-      setStartNode({ row, col, type, f: 0, g: 0, h: 0, weight, parent: null });
+      // Calculate heuristic from start to end if end exists
+      const end = endNode ? grid[endNode.row][endNode.col] : null;
+      const h = end ? heuristic({ row, col }, end) : 0;
+
+      setStartNode({
+        row,
+        col,
+        type,
+        f: h, // f = g + h; g = 0 for start
+        g: 0,
+        h: h,
+        weight,
+        parent: null,
+      });
       console.log(`Start node updated to (${row}, ${col})`);
+
+      // Update the start node's f in the grid
+      setGrid((prevGrid) => {
+        const newGrid = prevGrid.map((r) => r.map((n) => ({ ...n })));
+        newGrid[row][col].g = 0;
+        newGrid[row][col].h = h;
+        newGrid[row][col].f = h;
+        return newGrid;
+      });
     } else if (type === "end") {
-      setEndNode({ row, col, type, f: 0, g: 0, h: 0, weight, parent: null });
+      // Recalculate heuristic for start node if it exists
+      const start = startNode ? grid[startNode.row][startNode.col] : null;
+      const h = start ? heuristic(start, { row, col }) : 0;
+
+      setEndNode({
+        row,
+        col,
+        type,
+        f: 0,
+        g: 0,
+        h: 0,
+        weight,
+        parent: null,
+      });
       console.log(`End node updated to (${row}, ${col})`);
+
+      // Update heuristic for start node if it exists
+      if (startNode) {
+        setGrid((prevGrid) => {
+          const newGrid = prevGrid.map((r) => r.map((n) => ({ ...n })));
+          newGrid[startNode.row][startNode.col].h = h;
+          newGrid[startNode.row][startNode.col].f =
+            newGrid[startNode.row][startNode.col].g + h;
+          return newGrid;
+        });
+      }
     }
   };
 
@@ -358,7 +402,14 @@ export default function Home() {
       return prevGrid.map((row) =>
         row.map((node) => {
           if (node.type === "visited" || node.type === "path") {
-            return { ...node, type: "empty", parent: null, f: 0, g: 0, h: 0 };
+            return {
+              ...node,
+              type: "empty",
+              parent: null,
+              f: Infinity,
+              g: Infinity,
+              h: 0,
+            };
           }
           return node;
         })
@@ -564,11 +615,12 @@ export default function Home() {
     return null;
   };
 
-  // Greedy Best-First Search with priority queue
+  // Modified Greedy Best-First Search with weights
   const greedyBestFirstSearch = async (): Promise<Node[] | null> => {
     if (!startNode || !endNode) return null;
 
-    const openSet = new MinPriorityQueue<Node>((node) => node.h);
+    // Incorporate weight into priority
+    const openSet = new MinPriorityQueue<Node>((node) => node.h + node.weight);
     const closedSet: Set<string> = new Set();
 
     const start = grid[startNode.row][startNode.col];
@@ -587,7 +639,7 @@ export default function Home() {
       openSetMap.delete(getNodeKey(current));
 
       console.log(
-        `Processing node (${current.row}, ${current.col}) with h=${current.h}`
+        `Processing node (${current.row}, ${current.col}) with h=${current.h} and weight=${current.weight}`
       );
 
       if (current.row === endNode.row && current.col === endNode.col) {
@@ -605,7 +657,7 @@ export default function Home() {
         neighbor.parent = getNodeKey(current);
 
         console.log(
-          `Evaluating neighbor (${neighbor.row}, ${neighbor.col}) with h=${neighbor.h}`
+          `Evaluating neighbor (${neighbor.row}, ${neighbor.col}) with h=${neighbor.h} and weight=${neighbor.weight}`
         );
 
         if (!openSetMap.has(neighborKey)) {
@@ -870,7 +922,7 @@ export default function Home() {
 
     while (stack.length > 0) {
       const [currentRow, currentCol] = stack[stack.length - 1];
-      const neighbors: [number, number][] = [
+      const neighbors: [number, number][] | any= [
         [currentRow - 2, currentCol],
         [currentRow + 2, currentCol],
         [currentRow, currentCol - 2],
@@ -1250,6 +1302,68 @@ export default function Home() {
                   onChange={importGrid}
                   style={{ display: "none" }}
                 />
+              </div>
+              {/* Optional: Add Color Legend */}
+              <div className="mt-4">
+                <h2 className="font-semibold">Color Legend:</h2>
+                <ul>
+                  <li>
+                    <span
+                      style={{ backgroundColor: "#22c55e" }}
+                      className="inline-block w-4 h-4 mr-2"
+                    ></span>
+                    Start Node
+                  </li>
+                  <li>
+                    <span
+                      style={{ backgroundColor: "#ef4444" }}
+                      className="inline-block w-4 h-4 mr-2"
+                    ></span>
+                    End Node
+                  </li>
+                  <li>
+                    <span
+                      style={{ backgroundColor: "#374151" }}
+                      className="inline-block w-4 h-4 mr-2"
+                    ></span>
+                    Walls
+                  </li>
+                  <li>
+                    <span
+                      style={{ backgroundColor: `rgb(255, 255, 0)` }}
+                      className="inline-block w-4 h-4 mr-2"
+                    ></span>
+                    Weight 1
+                  </li>
+                  <li>
+                    <span
+                      style={{ backgroundColor: `rgb(255, 127, 0)` }}
+                      className="inline-block w-4 h-4 mr-2"
+                    ></span>
+                    Weight 5
+                  </li>
+                  <li>
+                    <span
+                      style={{ backgroundColor: `rgb(255, 0, 0)` }}
+                      className="inline-block w-4 h-4 mr-2"
+                    ></span>
+                    Weight 10
+                  </li>
+                  <li>
+                    <span
+                      style={{ backgroundColor: "#c084fc" }}
+                      className="inline-block w-4 h-4 mr-2"
+                    ></span>
+                    Path
+                  </li>
+                  <li>
+                    <span
+                      style={{ backgroundColor: "#bfdbfe" }}
+                      className="inline-block w-4 h-4 mr-2"
+                    ></span>
+                    Visited
+                  </li>
+                </ul>
               </div>
             </div>
           </TabsContent>
