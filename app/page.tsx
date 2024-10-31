@@ -32,7 +32,7 @@ import {
   Download,
   Upload,
 } from "lucide-react";
-import { toast } from "react-toastify";
+import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // Import a priority queue implementation
@@ -94,13 +94,20 @@ const getNodeKey = (node: Node): string => `${node.row},${node.col}`;
 const reconstructPath = (endNode: Node, grid: Node[][]): Node[] => {
   const path: Node[] = [];
   let current: Node | null = endNode;
+  let totalCost = 0; // Initialize total cost
+
   while (current && current.parent) {
     const [row, col]: any = current.parent.split(",").map(Number);
     current = grid[row][col];
     if (current && current.type !== "start" && current.type !== "end") {
       path.unshift(current);
+      totalCost += current.weight; // Accumulate weight
     }
   }
+
+  // Assuming you have access to 'setStats' here; alternatively, handle it in 'runAlgorithm'
+  // setStats((prev) => ({ ...prev, pathCost: totalCost }));
+
   return path;
 };
 
@@ -113,6 +120,7 @@ const reconstructBidirectionalPath = (
 ): Node[] => {
   const path: Node[] = [];
   let currentKey: string | any = getNodeKey(meetingPoint);
+  let totalCost = 0; // Initialize total cost
 
   // Reconstruct path from meeting point to start
   while (currentKey) {
@@ -124,6 +132,7 @@ const reconstructBidirectionalPath = (
       currentNode.type !== "end"
     ) {
       path.unshift(currentNode);
+      totalCost += currentNode.weight; // Accumulate weight
     }
     currentKey = forwardParents.get(currentKey) || null;
   }
@@ -139,9 +148,13 @@ const reconstructBidirectionalPath = (
       currentNode.type !== "end"
     ) {
       path.push(currentNode);
+      totalCost += currentNode.weight; // Accumulate weight
     }
     currentKey = backwardParents.get(currentKey) || null;
   }
+
+  // Assuming you have access to 'setStats' here; alternatively, handle it in 'runAlgorithm'
+  // setStats((prev) => ({ ...prev, pathCost: totalCost }));
 
   return path;
 };
@@ -153,19 +166,11 @@ export default function Home() {
   const [startNode, setStartNode] = useState<Node | null>(null);
   const [endNode, setEndNode] = useState<Node | null>(null);
   const [algorithm, setAlgorithm] = useState<
-    | "astar"
-    | "dijkstra"
-    | "bfs"
-    | "dfs"
-    | "greedy"
-    | "bidirectional"
-    | "swarm"
-    | "convergentSwarm"
-    | "bidirectionalSwarm"
-  >("astar");
+    "astar" | "dijkstra" | "bfs" | "dfs" | "greedy" | "bidirectional"
+  >("astar"); // Removed swarm algorithms
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [obstaclePercentage, setObstaclePercentage] = useState(0);
+  const [obstaclePercentage, setObstaclePercentage] = useState(50);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawMode, setDrawMode] = useState<
     "wall" | "weight" | "erase" | "start" | "end"
@@ -176,6 +181,7 @@ export default function Home() {
     visitedNodes: 0,
     pathLength: 0,
     executionTime: 0,
+    pathCost: 0, // New metric
   });
   const [showHeatmap, setShowHeatmap] = useState(false);
 
@@ -188,6 +194,7 @@ export default function Home() {
   const handlePause = () => {
     isPausedRef.current = !isPausedRef.current;
     setIsPaused(isPausedRef.current);
+    console.log(`Algorithm ${isPausedRef.current ? "paused" : "resumed"}`);
   };
 
   useEffect(() => {
@@ -207,7 +214,8 @@ export default function Home() {
     setGrid(createInitialGrid(rows, cols));
     setStartNode(null);
     setEndNode(null);
-    setStats({ visitedNodes: 0, pathLength: 0, executionTime: 0 });
+    setStats({ visitedNodes: 0, pathLength: 0, executionTime: 0, pathCost: 0 });
+    console.log("Grid reset");
   }, [rows, cols]);
 
   // Set node type
@@ -221,13 +229,18 @@ export default function Home() {
       const newGrid = prevGrid.map((r) => r.map((n) => ({ ...n }))); // Deep copy
       newGrid[row][col].type = type;
       newGrid[row][col].weight = weight;
+      console.log(
+        `Node (${row}, ${col}) set to type: ${type} with weight: ${weight}`
+      );
       return newGrid;
     });
 
     if (type === "start") {
       setStartNode({ row, col, type, f: 0, g: 0, h: 0, weight, parent: null });
+      console.log(`Start node updated to (${row}, ${col})`);
     } else if (type === "end") {
       setEndNode({ row, col, type, f: 0, g: 0, h: 0, weight, parent: null });
+      console.log(`End node updated to (${row}, ${col})`);
     }
   };
 
@@ -236,21 +249,37 @@ export default function Home() {
     if (isRunning) return;
 
     const node = grid[row][col];
+    console.log(`Interacting with node (${row}, ${col}) in mode: ${drawMode}`);
+
     if (drawMode === "start" && node.type !== "start") {
       if (startNode) {
         setNodeType(startNode.row, startNode.col, "empty");
+        console.log(
+          `Cleared previous start node at (${startNode.row}, ${startNode.col})`
+        );
       }
       setNodeType(row, col, "start");
+      console.log(`Set node (${row}, ${col}) as start`);
       setDrawMode("end");
+      console.log("Draw Mode set to: end");
     } else if (drawMode === "end" && node.type !== "end") {
       if (endNode) {
         setNodeType(endNode.row, endNode.col, "empty");
+        console.log(
+          `Cleared previous end node at (${endNode.row}, ${endNode.col})`
+        );
       }
       setNodeType(row, col, "end");
+      console.log(`Set node (${row}, ${col}) as end`);
     } else {
       switch (drawMode) {
         case "wall":
           setNodeType(row, col, node.type === "wall" ? "empty" : "wall");
+          console.log(
+            `Toggled node (${row}, ${col}) to ${
+              node.type === "wall" ? "empty" : "wall"
+            }`
+          );
           break;
         case "weight":
           setNodeType(
@@ -259,15 +288,23 @@ export default function Home() {
             node.type === "weight" ? "empty" : "weight",
             weightValue
           );
+          console.log(
+            `Toggled node (${row}, ${col}) to ${
+              node.type === "weight" ? "empty" : "weight"
+            } with weight ${weightValue}`
+          );
           break;
         case "erase":
           if (node.type === "start") {
             setStartNode(null);
+            console.log(`Erased start node at (${row}, ${col})`);
           }
           if (node.type === "end") {
             setEndNode(null);
+            console.log(`Erased end node at (${row}, ${col})`);
           }
           setNodeType(row, col, "empty");
+          console.log(`Set node (${row}, ${col}) to empty`);
           break;
         default:
           break;
@@ -275,15 +312,15 @@ export default function Home() {
     }
   };
 
-  // Get neighbors
+  // Get neighbors (fixed order: up, down, left, right)
   const getNeighbors = (node: Node, currentGrid: Node[][]): Node[] => {
     const neighbors: Node[] = [];
     const { row, col } = node;
 
-    if (row > 0) neighbors.push(currentGrid[row - 1][col]);
-    if (row < rows - 1) neighbors.push(currentGrid[row + 1][col]);
-    if (col > 0) neighbors.push(currentGrid[row][col - 1]);
-    if (col < cols - 1) neighbors.push(currentGrid[row][col + 1]);
+    if (row > 0) neighbors.push(currentGrid[row - 1][col]); // Up
+    if (row < rows - 1) neighbors.push(currentGrid[row + 1][col]); // Down
+    if (col > 0) neighbors.push(currentGrid[row][col - 1]); // Left
+    if (col < cols - 1) neighbors.push(currentGrid[row][col + 1]); // Right
 
     return neighbors.filter((neighbor) => neighbor.type !== "wall");
   };
@@ -314,7 +351,7 @@ export default function Home() {
 
     setIsRunning(true);
     setIsPaused(false);
-    setStats({ visitedNodes: 0, pathLength: 0, executionTime: 0 });
+    setStats({ visitedNodes: 0, pathLength: 0, executionTime: 0, pathCost: 0 });
 
     // Reset previous paths and visited nodes
     setGrid((prevGrid) => {
@@ -350,15 +387,6 @@ export default function Home() {
       case "bidirectional":
         path = await bidirectionalSearch();
         break;
-      case "swarm":
-        path = await swarm();
-        break;
-      case "convergentSwarm":
-        path = await convergentSwarm();
-        break;
-      case "bidirectionalSwarm":
-        path = await bidirectionalSwarm();
-        break;
       default:
         break;
     }
@@ -366,6 +394,7 @@ export default function Home() {
     const endTime = performance.now();
 
     if (path) {
+      let totalCost = 0;
       for (const node of path) {
         if (node.type !== "start" && node.type !== "end") {
           setGrid((prevGrid) => {
@@ -373,14 +402,21 @@ export default function Home() {
             newGrid[node.row][node.col].type = "path";
             return newGrid;
           });
-          setStats((prev) => ({ ...prev, pathLength: prev.pathLength + 1 }));
+          setStats((prev) => ({
+            ...prev,
+            pathLength: prev.pathLength + 1,
+            pathCost: prev.pathCost + node.weight, // Accumulate cost
+          }));
+          totalCost += node.weight;
           await new Promise((resolve) => setTimeout(resolve, 50));
         }
       }
       setStats((prev) => ({
         ...prev,
         executionTime: endTime - startTime,
+        pathCost: totalCost,
       }));
+      console.log(`Path found with total cost: ${totalCost}`);
     } else {
       toast.error("No path found!");
     }
@@ -423,6 +459,10 @@ export default function Home() {
       const current = openSet.dequeue()!;
       openSetMap.delete(getNodeKey(current));
 
+      console.log(
+        `Processing node (${current.row}, ${current.col}) with f=${current.f}`
+      );
+
       if (current.row === endNode.row && current.col === endNode.col) {
         return reconstructPath(current, grid);
       }
@@ -435,12 +475,19 @@ export default function Home() {
         if (closedSet.has(neighborKey)) continue;
 
         const tentativeG = current.g + neighbor.weight;
+        console.log(
+          `Evaluating neighbor (${neighbor.row}, ${neighbor.col}) with tentativeG=${tentativeG}`
+        );
 
         if (tentativeG < neighbor.g || !openSetMap.has(neighborKey)) {
           neighbor.g = tentativeG;
           neighbor.h = heuristic(neighbor, grid[endNode.row][endNode.col]);
           neighbor.f = neighbor.g + neighbor.h;
           neighbor.parent = getNodeKey(current);
+
+          console.log(
+            `Updating node (${neighbor.row}, ${neighbor.col}): g=${neighbor.g}, h=${neighbor.h}, f=${neighbor.f}`
+          );
 
           if (!openSetMap.has(neighborKey)) {
             openSet.enqueue(neighbor);
@@ -477,6 +524,10 @@ export default function Home() {
       const current = openSet.dequeue()!;
       openSetMap.delete(getNodeKey(current));
 
+      console.log(
+        `Processing node (${current.row}, ${current.col}) with g=${current.g}`
+      );
+
       if (current.row === endNode.row && current.col === endNode.col) {
         return reconstructPath(current, grid);
       }
@@ -489,10 +540,17 @@ export default function Home() {
         if (closedSet.has(neighborKey)) continue;
 
         const tentativeG = current.g + neighbor.weight;
+        console.log(
+          `Evaluating neighbor (${neighbor.row}, ${neighbor.col}) with tentativeG=${tentativeG}`
+        );
 
         if (tentativeG < neighbor.g || !openSetMap.has(neighborKey)) {
           neighbor.g = tentativeG;
           neighbor.parent = getNodeKey(current);
+
+          console.log(
+            `Updating node (${neighbor.row}, ${neighbor.col}): g=${neighbor.g}`
+          );
 
           if (!openSetMap.has(neighborKey)) {
             openSet.enqueue(neighbor);
@@ -528,6 +586,10 @@ export default function Home() {
       const current = openSet.dequeue()!;
       openSetMap.delete(getNodeKey(current));
 
+      console.log(
+        `Processing node (${current.row}, ${current.col}) with h=${current.h}`
+      );
+
       if (current.row === endNode.row && current.col === endNode.col) {
         return reconstructPath(current, grid);
       }
@@ -542,6 +604,10 @@ export default function Home() {
         neighbor.h = heuristic(neighbor, grid[endNode.row][endNode.col]);
         neighbor.parent = getNodeKey(current);
 
+        console.log(
+          `Evaluating neighbor (${neighbor.row}, ${neighbor.col}) with h=${neighbor.h}`
+        );
+
         if (!openSetMap.has(neighborKey)) {
           openSet.enqueue(neighbor);
           openSetMap.set(neighborKey, neighbor);
@@ -555,7 +621,6 @@ export default function Home() {
 
   // BFS algorithm
   const bfs = async (): Promise<Node[] | null> => {
-    // No changes needed; BFS is correct
     if (!startNode || !endNode) return null;
 
     const queue: Node[] = [];
@@ -571,6 +636,8 @@ export default function Home() {
 
       const current = queue.shift()!;
 
+      console.log(`Processing node (${current.row}, ${current.col})`);
+
       if (current.row === endNode.row && current.col === endNode.col) {
         return reconstructPath(current, grid);
       }
@@ -583,6 +650,7 @@ export default function Home() {
           neighbor.parent = getNodeKey(current);
           queue.push(neighbor);
 
+          console.log(`Visiting neighbor (${neighbor.row}, ${neighbor.col})`);
           await visualizeNode(neighbor.row, neighbor.col, "visited");
         }
       }
@@ -591,9 +659,8 @@ export default function Home() {
     return null;
   };
 
-  // DFS algorithm
+  // DFS algorithm (Deterministic: fixed neighbor order)
   const dfs = async (): Promise<Node[] | null> => {
-    // No significant changes needed; DFS is correct
     if (!startNode || !endNode) return null;
 
     const stack: Node[] = [];
@@ -612,6 +679,8 @@ export default function Home() {
       if (visited.has(currentKey)) continue;
       visited.add(currentKey);
 
+      console.log(`Processing node (${current.row}, ${current.col})`);
+
       if (current.row === endNode.row && current.col === endNode.col) {
         return reconstructPath(current, grid);
       }
@@ -619,13 +688,14 @@ export default function Home() {
       await visualizeNode(current.row, current.col, "visited");
 
       const neighbors = getNeighbors(current, grid);
-      // Randomize neighbor order
-      neighbors.sort(() => Math.random() - 0.5);
       for (const neighbor of neighbors) {
         const neighborKey = getNodeKey(neighbor);
         if (!visited.has(neighborKey)) {
           neighbor.parent = currentKey;
           stack.push(neighbor);
+          console.log(
+            `Adding neighbor (${neighbor.row}, ${neighbor.col}) to stack`
+          );
         }
       }
     }
@@ -663,8 +733,15 @@ export default function Home() {
       const currentForward = forwardQueue.shift()!;
       const currentForwardKey = getNodeKey(currentForward);
 
+      console.log(
+        `Forward: Processing node (${currentForward.row}, ${currentForward.col})`
+      );
+
       if (backwardVisited.has(currentForwardKey)) {
         meetingPoint = currentForward;
+        console.log(
+          `Meeting point found at (${currentForward.row}, ${currentForward.col})`
+        );
         break;
       }
 
@@ -675,10 +752,16 @@ export default function Home() {
           forwardVisited.add(neighborKey);
           forwardParents.set(neighborKey, currentForwardKey);
           forwardQueue.push(neighbor);
+          console.log(
+            `Forward: Visiting neighbor (${neighbor.row}, ${neighbor.col})`
+          );
           await visualizeNode(neighbor.row, neighbor.col, "visited");
 
           if (backwardVisited.has(neighborKey)) {
             meetingPoint = neighbor;
+            console.log(
+              `Meeting point found at (${neighbor.row}, ${neighbor.col})`
+            );
             break;
           }
         }
@@ -690,8 +773,15 @@ export default function Home() {
       const currentBackward = backwardQueue.shift()!;
       const currentBackwardKey = getNodeKey(currentBackward);
 
+      console.log(
+        `Backward: Processing node (${currentBackward.row}, ${currentBackward.col})`
+      );
+
       if (forwardVisited.has(currentBackwardKey)) {
         meetingPoint = currentBackward;
+        console.log(
+          `Meeting point found at (${currentBackward.row}, ${currentBackward.col})`
+        );
         break;
       }
 
@@ -702,10 +792,16 @@ export default function Home() {
           backwardVisited.add(neighborKey);
           backwardParents.set(neighborKey, currentBackwardKey);
           backwardQueue.push(neighbor);
+          console.log(
+            `Backward: Visiting neighbor (${neighbor.row}, ${neighbor.col})`
+          );
           await visualizeNode(neighbor.row, neighbor.col, "visited");
 
           if (forwardVisited.has(neighborKey)) {
             meetingPoint = neighbor;
+            console.log(
+              `Meeting point found at (${neighbor.row}, ${neighbor.col})`
+            );
             break;
           }
         }
@@ -715,233 +811,9 @@ export default function Home() {
     }
 
     if (meetingPoint) {
-      return reconstructBidirectionalPath(
-        meetingPoint,
-        forwardParents,
-        backwardParents,
-        grid
+      console.log(
+        `Reconstructing path through meeting point at (${meetingPoint.row}, ${meetingPoint.col})`
       );
-    }
-
-    return null;
-  };
-
-  // Swarm Algorithm
-  const swarm = async (): Promise<Node[] | null> => {
-    if (!startNode || !endNode) return null;
-
-    const openSet = new MinPriorityQueue<Node>((node) => node.f);
-    const closedSet: Set<string> = new Set();
-
-    const start = grid[startNode.row][startNode.col];
-    start.g = 0;
-    start.h = heuristic(start, grid[endNode.row][endNode.col]);
-    start.f = start.g - start.h;
-    openSet.enqueue(start);
-
-    const openSetMap = new Map<string, Node>();
-    openSetMap.set(getNodeKey(start), start);
-
-    while (!openSet.isEmpty()) {
-      if (isPausedRef.current) {
-        await pauseAlgorithm();
-      }
-
-      const current = openSet.dequeue()!;
-      openSetMap.delete(getNodeKey(current));
-
-      if (current.row === endNode.row && current.col === endNode.col) {
-        return reconstructPath(current, grid);
-      }
-
-      closedSet.add(getNodeKey(current));
-
-      const neighbors = getNeighbors(current, grid);
-      for (const neighbor of neighbors) {
-        const neighborKey = getNodeKey(neighbor);
-        if (closedSet.has(neighborKey)) continue;
-
-        const tentativeG = current.g + neighbor.weight;
-
-        if (tentativeG < neighbor.g || !openSetMap.has(neighborKey)) {
-          neighbor.g = tentativeG;
-          neighbor.h = heuristic(neighbor, grid[endNode.row][endNode.col]);
-          neighbor.f = neighbor.g - neighbor.h;
-          neighbor.parent = getNodeKey(current);
-
-          if (!openSetMap.has(neighborKey)) {
-            openSet.enqueue(neighbor);
-            openSetMap.set(neighborKey, neighbor);
-            await visualizeNode(neighbor.row, neighbor.col, "visited");
-          }
-        }
-      }
-    }
-
-    return null;
-  };
-
-  // Convergent Swarm Algorithm (Adjusted to differ from A*)
-  const convergentSwarm = async (): Promise<Node[] | null> => {
-    if (!startNode || !endNode) return null;
-
-    const weightFactor = 1.2; // Adjust this factor to change the algorithm's behavior
-    const openSet = new MinPriorityQueue<Node>((node) => node.f);
-    const closedSet: Set<string> = new Set();
-
-    const start = grid[startNode.row][startNode.col];
-    start.g = 0;
-    start.h = heuristic(start, grid[endNode.row][endNode.col]);
-    start.f = start.g + weightFactor * start.h;
-    openSet.enqueue(start);
-
-    const openSetMap = new Map<string, Node>();
-    openSetMap.set(getNodeKey(start), start);
-
-    while (!openSet.isEmpty()) {
-      if (isPausedRef.current) {
-        await pauseAlgorithm();
-      }
-
-      const current = openSet.dequeue()!;
-      openSetMap.delete(getNodeKey(current));
-
-      if (current.row === endNode.row && current.col === endNode.col) {
-        return reconstructPath(current, grid);
-      }
-
-      closedSet.add(getNodeKey(current));
-
-      const neighbors = getNeighbors(current, grid);
-      for (const neighbor of neighbors) {
-        const neighborKey = getNodeKey(neighbor);
-        if (closedSet.has(neighborKey)) continue;
-
-        const tentativeG = current.g + neighbor.weight;
-
-        if (tentativeG < neighbor.g || !openSetMap.has(neighborKey)) {
-          neighbor.g = tentativeG;
-          neighbor.h = heuristic(neighbor, grid[endNode.row][endNode.col]);
-          neighbor.f = neighbor.g + weightFactor * neighbor.h;
-          neighbor.parent = getNodeKey(current);
-
-          if (!openSetMap.has(neighborKey)) {
-            openSet.enqueue(neighbor);
-            openSetMap.set(neighborKey, neighbor);
-            await visualizeNode(neighbor.row, neighbor.col, "visited");
-          }
-        }
-      }
-    }
-
-    return null;
-  };
-
-  // Bidirectional Swarm Algorithm with fixed path reconstruction
-  const bidirectionalSwarm = async (): Promise<Node[] | null> => {
-    if (!startNode || !endNode) return null;
-
-    const forwardOpenSet = new MinPriorityQueue<Node>((node) => node.f);
-    const backwardOpenSet = new MinPriorityQueue<Node>((node) => node.f);
-    const forwardClosedSet: Set<string> = new Set();
-    const backwardClosedSet: Set<string> = new Set();
-
-    const forwardParents = new Map<string, string | null>();
-    const backwardParents = new Map<string, string | null>();
-
-    const start = grid[startNode.row][startNode.col];
-    start.g = 0;
-    start.h = heuristic(start, grid[endNode.row][endNode.col]);
-    start.f = start.g - start.h;
-    forwardOpenSet.enqueue(start);
-    forwardParents.set(getNodeKey(start), null);
-
-    const end = grid[endNode.row][endNode.col];
-    end.g = 0;
-    end.h = heuristic(end, grid[startNode.row][startNode.col]);
-    end.f = end.g - end.h;
-    backwardOpenSet.enqueue(end);
-    backwardParents.set(getNodeKey(end), null);
-
-    let meetingPoint: Node | null = null;
-
-    while (!forwardOpenSet.isEmpty() && !backwardOpenSet.isEmpty()) {
-      if (isPausedRef.current) {
-        await pauseAlgorithm();
-      }
-
-      // Forward step
-      const currentForward = forwardOpenSet.dequeue()!;
-      const currentForwardKey = getNodeKey(currentForward);
-      forwardClosedSet.add(currentForwardKey);
-
-      if (backwardClosedSet.has(currentForwardKey)) {
-        meetingPoint = currentForward;
-        break;
-      }
-
-      const neighborsForward = getNeighbors(currentForward, grid);
-      for (const neighbor of neighborsForward) {
-        const neighborKey = getNodeKey(neighbor);
-        if (forwardClosedSet.has(neighborKey)) continue;
-
-        const tentativeG = currentForward.g + neighbor.weight;
-
-        if (tentativeG < neighbor.g) {
-          neighbor.g = tentativeG;
-          neighbor.h = heuristic(neighbor, grid[endNode.row][endNode.col]);
-          neighbor.f = neighbor.g - neighbor.h;
-          forwardParents.set(neighborKey, currentForwardKey);
-
-          forwardOpenSet.enqueue(neighbor);
-          await visualizeNode(neighbor.row, neighbor.col, "visited");
-
-          if (backwardClosedSet.has(neighborKey)) {
-            meetingPoint = neighbor;
-            break;
-          }
-        }
-      }
-
-      if (meetingPoint) break;
-
-      // Backward step
-      const currentBackward = backwardOpenSet.dequeue()!;
-      const currentBackwardKey = getNodeKey(currentBackward);
-      backwardClosedSet.add(currentBackwardKey);
-
-      if (forwardClosedSet.has(currentBackwardKey)) {
-        meetingPoint = currentBackward;
-        break;
-      }
-
-      const neighborsBackward = getNeighbors(currentBackward, grid);
-      for (const neighbor of neighborsBackward) {
-        const neighborKey = getNodeKey(neighbor);
-        if (backwardClosedSet.has(neighborKey)) continue;
-
-        const tentativeG = currentBackward.g + neighbor.weight;
-
-        if (tentativeG < neighbor.g) {
-          neighbor.g = tentativeG;
-          neighbor.h = heuristic(neighbor, grid[startNode.row][startNode.col]);
-          neighbor.f = neighbor.g - neighbor.h;
-          backwardParents.set(neighborKey, currentBackwardKey);
-
-          backwardOpenSet.enqueue(neighbor);
-          await visualizeNode(neighbor.row, neighbor.col, "visited");
-
-          if (forwardClosedSet.has(neighborKey)) {
-            meetingPoint = neighbor;
-            break;
-          }
-        }
-      }
-
-      if (meetingPoint) break;
-    }
-
-    if (meetingPoint) {
       return reconstructBidirectionalPath(
         meetingPoint,
         forwardParents,
@@ -968,12 +840,15 @@ export default function Home() {
       if (newGrid[row][col].type === "empty") {
         newGrid[row][col].type = "wall";
         addedObstacles++;
+        console.log(`Added wall at (${row}, ${col})`);
       }
     }
 
     setGrid(newGrid);
     setStartNode(null);
     setEndNode(null);
+    setStats({ visitedNodes: 0, pathLength: 0, executionTime: 0, pathCost: 0 });
+    console.log("Random obstacles generated");
   };
 
   // Generate maze using Recursive Backtracking
@@ -995,7 +870,7 @@ export default function Home() {
 
     while (stack.length > 0) {
       const [currentRow, currentCol] = stack[stack.length - 1];
-      const neighbors: [number, number][] | any = [
+      const neighbors: [number, number][] = [
         [currentRow - 2, currentCol],
         [currentRow + 2, currentCol],
         [currentRow, currentCol - 2],
@@ -1017,14 +892,18 @@ export default function Home() {
           Math.floor((currentCol + nextCol) / 2)
         ].type = "empty";
         stack.push([nextRow, nextCol]);
+        console.log(`Carving path to (${nextRow}, ${nextCol})`);
       } else {
         stack.pop();
+        console.log("Backtracking");
       }
     }
 
     setGrid(newGrid);
     setStartNode(null);
     setEndNode(null);
+    setStats({ visitedNodes: 0, pathLength: 0, executionTime: 0, pathCost: 0 });
+    console.log("Maze generated");
   };
 
   // Export grid
@@ -1044,6 +923,7 @@ export default function Home() {
     linkElement.setAttribute("href", dataUri);
     linkElement.setAttribute("download", exportFileDefaultName);
     linkElement.click();
+    console.log("Grid exported");
   };
 
   // Import grid
@@ -1069,12 +949,21 @@ export default function Home() {
             setGrid(newGrid);
             setStartNode(null);
             setEndNode(null);
+            setStats({
+              visitedNodes: 0,
+              pathLength: 0,
+              executionTime: 0,
+              pathCost: 0,
+            });
             toast.success("Grid imported successfully");
+            console.log("Grid imported from file");
           } else {
             toast.error("Invalid grid format");
+            console.error("Imported grid format is invalid");
           }
         } catch (error) {
           toast.error("Error importing grid");
+          console.error("Error parsing imported grid:", error);
         }
       };
       reader.readAsText(file);
@@ -1102,43 +991,49 @@ export default function Home() {
     return grid.map((row, rowIndex) => (
       <div key={rowIndex} className="flex">
         {row.map((node, colIndex) => {
-          let bgColor = "bg-white";
+          let style: React.CSSProperties = {};
+
           switch (node.type) {
             case "start":
-              bgColor = "bg-green-500";
+              style = { backgroundColor: "#22c55e" }; // Tailwind Green-500
               break;
             case "end":
-              bgColor = "bg-red-500";
+              style = { backgroundColor: "#ef4444" }; // Tailwind Red-500
               break;
             case "wall":
-              bgColor = "bg-gray-800";
+              style = { backgroundColor: "#374151" }; // Tailwind Gray-800
               break;
             case "weight":
-              const yellowShade = Math.min(
-                Math.floor((node.weight * 100) / 10) * 100,
-                900
-              );
-              bgColor = `bg-yellow-${yellowShade}`;
+              const yellowIntensity = Math.min(
+                Math.floor((node.weight * 255) / 10),
+                255
+              ); // Scale weight to 0-255
+              style = {
+                backgroundColor: `rgb(255, ${255 - yellowIntensity}, 0)`,
+              }; // Gradient from yellow to red
               break;
             case "path":
-              bgColor = "bg-purple-400";
+              style = { backgroundColor: "#c084fc" }; // Tailwind Purple-400
               break;
             case "visited":
-              bgColor = showHeatmap
-                ? `bg-blue-${Math.min(
-                    Math.floor((node.f * 100) / (rows * cols)) * 100,
-                    900
-                  )}`
-                : "bg-blue-200";
+              style = showHeatmap
+                ? {
+                    backgroundColor: `rgb(0, 0, ${Math.min(
+                      Math.floor((node.f * 100) / (rows * cols)) * 2.55,
+                      255
+                    )})`,
+                  }
+                : { backgroundColor: "#bfdbfe" }; // Tailwind Blue-200
               break;
             default:
-              bgColor = "bg-white";
+              style = { backgroundColor: "#ffffff" }; // White
           }
 
           return (
             <div
               key={`${rowIndex}-${colIndex}`}
-              className={`w-4 h-4 border border-gray-200 ${bgColor} cursor-pointer`}
+              className={`w-4 h-4 border border-gray-200 cursor-pointer`}
+              style={style}
               onMouseDown={() => handleMouseDown(rowIndex, colIndex)}
               onMouseUp={handleMouseUp}
               onMouseEnter={() => handleMouseEnter(rowIndex, colIndex)}
@@ -1173,9 +1068,6 @@ export default function Home() {
                         | "dfs"
                         | "greedy"
                         | "bidirectional"
-                        | "swarm"
-                        | "convergentSwarm"
-                        | "bidirectionalSwarm"
                     )
                   }
                 >
@@ -1194,13 +1086,6 @@ export default function Home() {
                     </SelectItem>
                     <SelectItem value="bidirectional">
                       Bidirectional Search
-                    </SelectItem>
-                    <SelectItem value="swarm">Swarm Algorithm</SelectItem>
-                    <SelectItem value="convergentSwarm">
-                      Convergent Swarm Algorithm
-                    </SelectItem>
-                    <SelectItem value="bidirectionalSwarm">
-                      Bidirectional Swarm Algorithm
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -1288,35 +1173,50 @@ export default function Home() {
                 <Button
                   variant={drawMode === "start" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setDrawMode("start")}
+                  onClick={() => {
+                    setDrawMode("start");
+                    console.log("Draw Mode set to: start");
+                  }}
                 >
                   <Flag className="w-4 h-4" />
                 </Button>
                 <Button
                   variant={drawMode === "end" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setDrawMode("end")}
+                  onClick={() => {
+                    setDrawMode("end");
+                    console.log("Draw Mode set to: end");
+                  }}
                 >
                   <Target className="w-4 h-4" />
                 </Button>
                 <Button
                   variant={drawMode === "wall" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setDrawMode("wall")}
+                  onClick={() => {
+                    setDrawMode("wall");
+                    console.log("Draw Mode set to: wall");
+                  }}
                 >
                   <Pencil className="w-4 h-4" />
                 </Button>
                 <Button
                   variant={drawMode === "weight" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setDrawMode("weight")}
+                  onClick={() => {
+                    setDrawMode("weight");
+                    console.log("Draw Mode set to: weight");
+                  }}
                 >
                   <Info className="w-4 h-4" />
                 </Button>
                 <Button
                   variant={drawMode === "erase" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setDrawMode("erase")}
+                  onClick={() => {
+                    setDrawMode("erase");
+                    console.log("Draw Mode set to: erase");
+                  }}
                 >
                   <Eraser className="w-4 h-4" />
                 </Button>
@@ -1365,6 +1265,7 @@ export default function Home() {
                 <div className="space-y-2">
                   <div>Visited Nodes: {stats.visitedNodes}</div>
                   <div>Path Length: {stats.pathLength}</div>
+                  <div>Total Path Cost: {stats.pathCost}</div> {/* New line */}
                   <div>Execution Time: {stats.executionTime.toFixed(2)} ms</div>
                 </div>
               </CardContent>
@@ -1377,28 +1278,7 @@ export default function Home() {
           {renderGrid()}
         </div>
       </div>
-      {/* <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="fixed bottom-4 right-4"
-            >
-              <Info className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="left" align="end">
-            <p>Green: Start</p>
-            <p>Red: End</p>
-            <p>Black: Wall</p>
-            <p>Yellow: Weighted Node</p>
-            <p>Blue: Visited Node</p>
-            <p>Purple: Path</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      <ToastContainer position="bottom-right" /> */}
+      <ToastContainer position="bottom-right" />
     </div>
   );
 }
