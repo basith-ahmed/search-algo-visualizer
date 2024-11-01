@@ -168,13 +168,13 @@ export default function Home() {
   >("astar"); // Removed swarm algorithms
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [obstaclePercentage, setObstaclePercentage] = useState(50);
+  const [obstaclePercentage, setObstaclePercentage] = useState(20);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawMode, setDrawMode] = useState<
     "wall" | "weight" | "erase" | "start" | "end"
   >("start");
   const [visualizationSpeed, setVisualizationSpeed] = useState(80);
-  const [weightValue, setWeightValue] = useState(1);
+  const [weightValue, setWeightValue] = useState(5);
   const [stats, setStats] = useState({
     visitedNodes: 0,
     pathLength: 0,
