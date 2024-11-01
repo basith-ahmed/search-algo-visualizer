@@ -150,10 +150,6 @@ const reconstructBidirectionalPath = (
     currentKey = backwardParents.get(currentKey) || null;
   }
 
-  // Update path cost
-  // Assuming you have access to 'setStats' here; alternatively, handle it in 'runAlgorithm'
-  // setStats((prev) => ({ ...prev, pathCost: totalCost }));
-
   return path;
 };
 
@@ -197,7 +193,7 @@ export default function Home() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const newRows = Math.floor((window.innerHeight - 74) / 16);
+      const newRows = Math.floor((window.innerHeight - 150) / 16);
       const newCols = Math.floor((window.innerWidth - (320 + 74)) / 16);
       setRows(newRows);
       setCols(newCols);
@@ -922,7 +918,7 @@ export default function Home() {
 
     while (stack.length > 0) {
       const [currentRow, currentCol] = stack[stack.length - 1];
-      const neighbors: [number, number][] | any= [
+      const neighbors: [number, number][] | any = [
         [currentRow - 2, currentCol],
         [currentRow + 2, currentCol],
         [currentRow, currentCol - 2],
@@ -1098,298 +1094,288 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <div className="w-80 bg-white p-4 shadow-md overflow-y-auto">
+      <div className="w-80 bg-white p-4 shadow-md overflow-y-auto h-screen">
         <h1 className="text-2xl font-bold mb-4">Pathfinding Visualizer</h1>
-        <Tabs defaultValue="controls">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="controls">Controls</TabsTrigger>
-            <TabsTrigger value="stats">Stats</TabsTrigger>
-          </TabsList>
-          <TabsContent value="controls">
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="algorithm">Algorithm</Label>
-                <Select
-                  value={algorithm}
-                  onValueChange={(value) =>
-                    setAlgorithm(
-                      value as
-                        | "astar"
-                        | "dijkstra"
-                        | "bfs"
-                        | "dfs"
-                        | "greedy"
-                        | "bidirectional"
-                    )
-                  }
-                >
-                  <SelectTrigger id="algorithm">
-                    <SelectValue placeholder="Select Algorithm" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="astar">A* Algorithm</SelectItem>
-                    <SelectItem value="dijkstra">
-                      Dijkstra's Algorithm
-                    </SelectItem>
-                    <SelectItem value="bfs">Breadth-First Search</SelectItem>
-                    <SelectItem value="dfs">Depth-First Search</SelectItem>
-                    <SelectItem value="greedy">
-                      Greedy Best-First Search
-                    </SelectItem>
-                    <SelectItem value="bidirectional">
-                      Bidirectional Search
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={runAlgorithm}
-                  disabled={isRunning || !startNode || !endNode}
-                  className="flex-1"
-                >
-                  <Play className="w-4 h-4 mr-2" />
-                  {isRunning ? "Running..." : "Run"}
-                </Button>
-                <Button
-                  onClick={handlePause}
-                  disabled={!isRunning}
-                  className="flex-1"
-                >
-                  {isPaused ? (
-                    <Play className="w-4 h-4" />
-                  ) : (
-                    <Pause className="w-4 h-4" />
-                  )}
-                </Button>
-              </div>
-              <Button
-                onClick={resetGrid}
-                disabled={isRunning}
-                className="w-full"
-              >
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Reset Grid
-              </Button>
-              <Button
-                onClick={generateRandomObstacles}
-                disabled={isRunning}
-                className="w-full"
-              >
-                Random Obstacles
-              </Button>
-              <Button
-                onClick={generateMaze}
-                disabled={isRunning}
-                className="w-full"
-              >
-                Generate Maze
-              </Button>
-              <div>
-                <Label htmlFor="obstacle-density">
-                  Obstacle Density: {obstaclePercentage}%
-                </Label>
-                <Slider
-                  id="obstacle-density"
-                  value={[obstaclePercentage]}
-                  onValueChange={(value) => setObstaclePercentage(value[0])}
-                  max={40}
-                  step={1}
-                />
-              </div>
-              <div>
-                <Label htmlFor="visualization-speed">Visualization Speed</Label>
-                <Slider
-                  id="visualization-speed"
-                  value={[visualizationSpeed]}
-                  onValueChange={(value) => setVisualizationSpeed(value[0])}
-                  max={100}
-                  step={1}
-                />
-              </div>
-              <div>
-                <Label htmlFor="weight-value">
-                  Weight Value: {weightValue}
-                </Label>
-                <Slider
-                  id="weight-value"
-                  value={[weightValue]}
-                  onValueChange={(value) => setWeightValue(value[0])}
-                  min={1}
-                  max={10}
-                  step={1}
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Label>Draw Mode:</Label>
-                <Button
-                  variant={drawMode === "start" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setDrawMode("start");
-                    console.log("Draw Mode set to: start");
-                  }}
-                >
-                  <Flag className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={drawMode === "end" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setDrawMode("end");
-                    console.log("Draw Mode set to: end");
-                  }}
-                >
-                  <Target className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={drawMode === "wall" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setDrawMode("wall");
-                    console.log("Draw Mode set to: wall");
-                  }}
-                >
-                  <Pencil className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={drawMode === "weight" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setDrawMode("weight");
-                    console.log("Draw Mode set to: weight");
-                  }}
-                >
-                  <Info className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={drawMode === "erase" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    setDrawMode("erase");
-                    console.log("Draw Mode set to: erase");
-                  }}
-                >
-                  <Eraser className="w-4 h-4" />
-                </Button>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="heatmap-mode"
-                  checked={showHeatmap}
-                  onCheckedChange={setShowHeatmap}
-                />
-                <Label htmlFor="heatmap-mode">Show Heatmap</Label>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={exportGrid} className="flex-1">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
-                </Button>
-                <Button
-                  onClick={() =>
-                    document.getElementById("import-input")?.click()
-                  }
-                  className="flex-1"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Import
-                </Button>
-                <input
-                  id="import-input"
-                  type="file"
-                  accept=".json"
-                  onChange={importGrid}
-                  style={{ display: "none" }}
-                />
-              </div>
-              {/* Optional: Add Color Legend */}
-              <div className="mt-4">
-                <h2 className="font-semibold">Color Legend:</h2>
-                <ul>
-                  <li>
-                    <span
-                      style={{ backgroundColor: "#22c55e" }}
-                      className="inline-block w-4 h-4 mr-2"
-                    ></span>
-                    Start Node
-                  </li>
-                  <li>
-                    <span
-                      style={{ backgroundColor: "#ef4444" }}
-                      className="inline-block w-4 h-4 mr-2"
-                    ></span>
-                    End Node
-                  </li>
-                  <li>
-                    <span
-                      style={{ backgroundColor: "#374151" }}
-                      className="inline-block w-4 h-4 mr-2"
-                    ></span>
-                    Walls
-                  </li>
-                  <li>
-                    <span
-                      style={{ backgroundColor: `rgb(255, 255, 0)` }}
-                      className="inline-block w-4 h-4 mr-2"
-                    ></span>
-                    Weight 1
-                  </li>
-                  <li>
-                    <span
-                      style={{ backgroundColor: `rgb(255, 127, 0)` }}
-                      className="inline-block w-4 h-4 mr-2"
-                    ></span>
-                    Weight 5
-                  </li>
-                  <li>
-                    <span
-                      style={{ backgroundColor: `rgb(255, 0, 0)` }}
-                      className="inline-block w-4 h-4 mr-2"
-                    ></span>
-                    Weight 10
-                  </li>
-                  <li>
-                    <span
-                      style={{ backgroundColor: "#c084fc" }}
-                      className="inline-block w-4 h-4 mr-2"
-                    ></span>
-                    Path
-                  </li>
-                  <li>
-                    <span
-                      style={{ backgroundColor: "#bfdbfe" }}
-                      className="inline-block w-4 h-4 mr-2"
-                    ></span>
-                    Visited
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </TabsContent>
-          <TabsContent value="stats">
-            <Card>
-              <CardHeader>
-                <CardTitle>Algorithm Statistics</CardTitle>
-                <CardDescription>
-                  Performance metrics for the current run
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div>Visited Nodes: {stats.visitedNodes}</div>
-                  <div>Path Length: {stats.pathLength}</div>
-                  <div>Total Path Cost: {stats.pathCost}</div> {/* New line */}
-                  <div>Execution Time: {stats.executionTime.toFixed(2)} ms</div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {/* Controls */}
+        <div className="flex flex-col h-[92.5%] justify-between">
+          <div>
+            <Label htmlFor="algorithm">Algorithm</Label>
+            <Select
+              value={algorithm}
+              onValueChange={(value) =>
+                setAlgorithm(
+                  value as
+                    | "astar"
+                    | "dijkstra"
+                    | "bfs"
+                    | "dfs"
+                    | "greedy"
+                    | "bidirectional"
+                )
+              }
+            >
+              <SelectTrigger id="algorithm">
+                <SelectValue placeholder="Select Algorithm" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="astar">A* Algorithm</SelectItem>
+                <SelectItem value="dijkstra">Dijkstra's Algorithm</SelectItem>
+                <SelectItem value="bfs">Breadth-First Search</SelectItem>
+                <SelectItem value="dfs">Depth-First Search</SelectItem>
+                <SelectItem value="greedy">Greedy Best-First Search</SelectItem>
+                <SelectItem value="bidirectional">
+                  Bidirectional Search
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={runAlgorithm}
+              disabled={isRunning || !startNode || !endNode}
+              className="flex-1"
+            >
+              <Play className="w-4 h-4 mr-2" />
+              {isRunning ? "Running..." : "Run"}
+            </Button>
+            <Button
+              onClick={handlePause}
+              disabled={!isRunning}
+              className="flex-1"
+            >
+              {isPaused ? (
+                <Play className="w-4 h-4" />
+              ) : (
+                <Pause className="w-4 h-4" />
+              )}
+            </Button>
+          </div>
+          <Button onClick={resetGrid} disabled={isRunning} className="w-full">
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Reset Grid
+          </Button>
+          <Button
+            onClick={generateRandomObstacles}
+            disabled={isRunning}
+            className="w-full"
+          >
+            Random Obstacles
+          </Button>
+          <Button
+            onClick={generateMaze}
+            disabled={isRunning}
+            className="w-full"
+          >
+            Generate Maze
+          </Button>
+          <div>
+            <Label htmlFor="obstacle-density">
+              Obstacle Density: {obstaclePercentage}%
+            </Label>
+            <Slider
+              id="obstacle-density"
+              value={[obstaclePercentage]}
+              onValueChange={(value) => setObstaclePercentage(value[0])}
+              max={40}
+              step={1}
+            />
+          </div>
+          <div>
+            <Label htmlFor="visualization-speed">Visualization Speed</Label>
+            <Slider
+              id="visualization-speed"
+              value={[visualizationSpeed]}
+              onValueChange={(value) => setVisualizationSpeed(value[0])}
+              max={100}
+              step={1}
+            />
+          </div>
+          <div>
+            <Label htmlFor="weight-value">Weight Value: {weightValue}</Label>
+            <Slider
+              id="weight-value"
+              value={[weightValue]}
+              onValueChange={(value) => setWeightValue(value[0])}
+              min={1}
+              max={10}
+              step={1}
+            />
+          </div>
+          <div className="flex items-center space-x-2">
+            <Label>Draw Mode:</Label>
+            <Button
+              variant={drawMode === "start" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setDrawMode("start");
+                console.log("Draw Mode set to: start");
+              }}
+            >
+              <Flag className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={drawMode === "end" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setDrawMode("end");
+                console.log("Draw Mode set to: end");
+              }}
+            >
+              <Target className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={drawMode === "wall" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setDrawMode("wall");
+                console.log("Draw Mode set to: wall");
+              }}
+            >
+              <Pencil className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={drawMode === "weight" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setDrawMode("weight");
+                console.log("Draw Mode set to: weight");
+              }}
+            >
+              <Info className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={drawMode === "erase" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setDrawMode("erase");
+                console.log("Draw Mode set to: erase");
+              }}
+            >
+              <Eraser className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="heatmap-mode"
+              checked={showHeatmap}
+              onCheckedChange={setShowHeatmap}
+            />
+            <Label htmlFor="heatmap-mode">Show Heatmap</Label>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={exportGrid} className="flex-1">
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+            <Button
+              onClick={() => document.getElementById("import-input")?.click()}
+              className="flex-1"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Import
+            </Button>
+            <input
+              id="import-input"
+              type="file"
+              accept=".json"
+              onChange={importGrid}
+              style={{ display: "none" }}
+            />
+          </div>
+        </div>
       </div>
-      <div className="flex-1 p-4 overflow-auto flex justify-center items-center">
-        <div className="border border-gray-300 bg-white p-2 inline-block rounded-lg">
-          {renderGrid()}
+      <div className="flex-1 p-4 overflow-auto flex flex-col">
+        {/* Navbar */}
+        <div className="flex items-center justify-between bg-white p-2 -m-4 mb-4 pr-4">
+          {/* Stats */}
+          <div className="space-x-6 flex text-sm font-medium">
+            <div>Visited Nodes: {stats.visitedNodes}</div>
+            <div>Path Length: {stats.pathLength}</div>
+            <div>Total Path Cost: {stats.pathCost}</div>
+            <div>Execution Time: {stats.executionTime.toFixed(2)} ms</div>
+          </div>
+          {/* GitHub link */}
+          <div>
+            <a
+              href="https://github.com/basith-ahmed/search-algo-visualizer"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500 hover:underline text-sm"
+            >
+              View on GitHub
+            </a>
+          </div>
+        </div>
+        {/* Grid */}
+        <div className="flex-1 flex justify-center items-center">
+          <div className="border border-gray-300 bg-white p-2 inline-block rounded-lg">
+            {renderGrid()}
+          </div>
+        </div>
+        {/* Footer */}
+        <div className="bg-white p-2 -m-4 mt-4 pr-4">
+          {/* Color Legend */}
+          <div className="flex flex-row items-center space-x-4">
+            <h2 className="font-semibold text-sm text-nowrap">Color Legend:</h2>
+            <ul className="flex flex-row flex-wrap w-full space-x-4 text-sm justify-between">
+              <li className="flex items-center">
+                <span
+                  style={{ backgroundColor: "#22c55e" }}
+                  className="inline-block w-4 h-4 rounded mr-2"
+                ></span>
+                Start Node
+              </li>
+              <li className="flex items-center">
+                <span
+                  style={{ backgroundColor: "#ef4444" }}
+                  className="inline-block w-4 h-4 rounded mr-2"
+                ></span>
+                End Node
+              </li>
+              <li className="flex items-center">
+                <span
+                  style={{ backgroundColor: "#374151" }}
+                  className="inline-block w-4 h-4 rounded mr-2"
+                ></span>
+                Walls
+              </li>
+              <li className="flex items-center">
+                <span
+                  style={{ backgroundColor: "rgb(255, 255, 0)" }}
+                  className="inline-block w-4 h-4 rounded mr-2"
+                ></span>
+                Weight 1
+              </li>
+              <li className="flex items-center">
+                <span
+                  style={{ backgroundColor: "rgb(255, 127, 0)" }}
+                  className="inline-block w-4 h-4 rounded mr-2"
+                ></span>
+                Weight 5
+              </li>
+              <li className="flex items-center">
+                <span
+                  style={{ backgroundColor: "rgb(255, 0, 0)" }}
+                  className="inline-block w-4 h-4 rounded mr-2"
+                ></span>
+                Weight 10
+              </li>
+              <li className="flex items-center">
+                <span
+                  style={{ backgroundColor: "#c084fc" }}
+                  className="inline-block w-4 h-4 rounded mr-2"
+                ></span>
+                Path
+              </li>
+              <li className="flex items-center">
+                <span
+                  style={{ backgroundColor: "#bfdbfe" }}
+                  className="inline-block w-4 h-4 rounded mr-2"
+                ></span>
+                Visited
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
       <ToastContainer position="bottom-right" />
