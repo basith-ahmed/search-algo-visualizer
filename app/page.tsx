@@ -314,25 +314,20 @@ export default function Home() {
     } else {
       switch (drawMode) {
         case "wall":
-          setNodeType(row, col, node.type === "wall" ? "empty" : "wall");
-          console.log(
-            `Toggled node (${row}, ${col}) to ${
-              node.type === "wall" ? "empty" : "wall"
-            }`
-          );
+          // **Fixed Logic**: Only set to 'wall' if it's not already a wall
+          if (node.type !== "wall") {
+            setNodeType(row, col, "wall");
+            console.log(`Set node (${row}, ${col}) to wall`);
+          }
           break;
         case "weight":
-          setNodeType(
-            row,
-            col,
-            node.type === "weight" ? "empty" : "weight",
-            weightValue
-          );
-          console.log(
-            `Toggled node (${row}, ${col}) to ${
-              node.type === "weight" ? "empty" : "weight"
-            } with weight ${weightValue}`
-          );
+          // **Fixed Logic**: Only set to 'weight' if it's not already a weight
+          if (node.type !== "weight") {
+            setNodeType(row, col, "weight", weightValue);
+            console.log(
+              `Set node (${row}, ${col}) to weight with value ${weightValue}`
+            );
+          }
           break;
         case "erase":
           if (node.type === "start") {
@@ -455,7 +450,7 @@ export default function Home() {
             pathCost: prev.pathCost + node.weight, // Accumulate cost
           }));
           totalCost += node.weight;
-          await new Promise((resolve) => setTimeout(resolve, 50));
+          await new Promise((resolve) => setTimeout(resolve, 0)); // Reduced delay for faster path drawing
         }
       }
       setStats((prev) => ({
