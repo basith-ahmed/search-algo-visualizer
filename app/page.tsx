@@ -12,14 +12,6 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-// import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// import {
-//   Card,
-//   CardContent,
-//   CardDescription,
-//   CardHeader,
-//   CardTitle,
-// } from "@/components/ui/card";
 import {
   Info,
   Play,
@@ -35,7 +27,6 @@ import {
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-// Import a priority queue implementation
 import { MinPriorityQueue } from "@datastructures-js/priority-queue";
 
 // Node types
@@ -70,9 +61,9 @@ const createInitialGrid = (rows: number, cols: number): Node[][] => {
         row,
         col,
         type: "empty",
-        f: Infinity, // Initialize to Infinity
-        g: Infinity, // Initialize to Infinity
-        h: 0, // Will be set when needed
+        f: Infinity, 
+        g: Infinity, 
+        h: 0, 
         weight: 1,
         parent: null,
       });
@@ -94,14 +85,14 @@ const getNodeKey = (node: Node): string => `${node.row},${node.col}`;
 const reconstructPath = (endNode: Node, grid: Node[][]): Node[] => {
   const path: Node[] = [];
   let current: Node | null = endNode;
-  let totalCost = 0; // Initialize total cost
+  let totalCost = 0; 
 
   while (current && current.parent) {
     const [row, col]: any = current.parent.split(",").map(Number);
     current = grid[row][col];
     if (current && current.type !== "start" && current.type !== "end") {
       path.unshift(current);
-      totalCost += current.weight; // Accumulate weight
+      totalCost += current.weight; 
     }
   }
 
@@ -117,7 +108,7 @@ const reconstructBidirectionalPath = (
 ): Node[] => {
   const path: Node[] = [];
   let currentKey: string | any = getNodeKey(meetingPoint);
-  let totalCost = 0; // Initialize total cost
+  let totalCost = 0; 
 
   // Reconstruct path from meeting point to start
   while (currentKey) {
@@ -129,7 +120,7 @@ const reconstructBidirectionalPath = (
       currentNode.type !== "end"
     ) {
       path.unshift(currentNode);
-      totalCost += currentNode.weight; // Accumulate weight
+      totalCost += currentNode.weight; 
     }
     currentKey = forwardParents.get(currentKey) || null;
   }
@@ -145,7 +136,7 @@ const reconstructBidirectionalPath = (
       currentNode.type !== "end"
     ) {
       path.push(currentNode);
-      totalCost += currentNode.weight; // Accumulate weight
+      totalCost += currentNode.weight; 
     }
     currentKey = backwardParents.get(currentKey) || null;
   }
@@ -161,7 +152,7 @@ export default function Home() {
   const [endNode, setEndNode] = useState<Node | null>(null);
   const [algorithm, setAlgorithm] = useState<
     "astar" | "dijkstra" | "bfs" | "dfs" | "greedy" | "bidirectional"
-  >("astar"); // Removed swarm algorithms
+  >("astar"); 
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [obstaclePercentage, setObstaclePercentage] = useState(20);
@@ -175,7 +166,7 @@ export default function Home() {
     visitedNodes: 0,
     pathLength: 0,
     executionTime: 0,
-    pathCost: 0, // New metric
+    pathCost: 0, 
   });
   const [showHeatmap, setShowHeatmap] = useState(false);
 
@@ -221,7 +212,7 @@ export default function Home() {
     setGrid(createInitialGrid(rows, cols)); // Reset grid to initial state
     setStartNode(null);
     setEndNode(null);
-    // Default Values
+    // Default values
     setAlgorithm("astar"); 
     setObstaclePercentage(20); 
     setVisualizationSpeed(80);
@@ -233,19 +224,10 @@ export default function Home() {
       executionTime: 0,
       pathCost: 0, // Reset all stats
     });
-    setShowHeatmap(false); // Disable heatmap
+    setShowHeatmap(false); 
 
     console.log("Complete reset of the program");
   }, [rows, cols]);
-
-  // Old resetGrid
-  // const resetGrid = useCallback(() => {
-  //   setGrid(createInitialGrid(rows, cols));
-  //   setStartNode(null);
-  //   setEndNode(null);
-  //   setStats({ visitedNodes: 0, pathLength: 0, executionTime: 0, pathCost: 0 });
-  //   console.log("Grid reset");
-  // }, [rows, cols]);
 
   // Set node type
   const setNodeType = (
@@ -482,10 +464,10 @@ export default function Home() {
           setStats((prev) => ({
             ...prev,
             pathLength: prev.pathLength + 1,
-            pathCost: prev.pathCost + node.weight, // Accumulate cost
+            pathCost: prev.pathCost + node.weight, 
           }));
           totalCost += node.weight;
-          await new Promise((resolve) => setTimeout(resolve, 0)); // Reduced delay for faster path drawing
+          await new Promise((resolve) => setTimeout(resolve, 0)); // reduce delay for faster path drawing
         }
       }
       setStats((prev) => ({
