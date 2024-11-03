@@ -36,7 +36,8 @@ type NodeType =
   | "wall"
   | "empty"
   | "path"
-  | "visited"
+  | "visited-pale"
+  | "visited-dark"
   | "weight";
 
 // Node interface
@@ -61,9 +62,9 @@ const createInitialGrid = (rows: number, cols: number): Node[][] => {
         row,
         col,
         type: "empty",
-        f: Infinity, 
-        g: Infinity, 
-        h: 0, 
+        f: Infinity,
+        g: Infinity,
+        h: 0,
         weight: 1,
         parent: null,
       });
@@ -85,14 +86,14 @@ const getNodeKey = (node: Node): string => `${node.row},${node.col}`;
 const reconstructPath = (endNode: Node, grid: Node[][]): Node[] => {
   const path: Node[] = [];
   let current: Node | null = endNode;
-  let totalCost = 0; 
+  let totalCost = 0;
 
   while (current && current.parent) {
     const [row, col]: any = current.parent.split(",").map(Number);
     current = grid[row][col];
     if (current && current.type !== "start" && current.type !== "end") {
       path.unshift(current);
-      totalCost += current.weight; 
+      totalCost += current.weight;
     }
   }
 
@@ -108,7 +109,7 @@ const reconstructBidirectionalPath = (
 ): Node[] => {
   const path: Node[] = [];
   let currentKey: string | any = getNodeKey(meetingPoint);
-  let totalCost = 0; 
+  let totalCost = 0;
 
   // Reconstruct path from meeting point to start
   while (currentKey) {
@@ -120,7 +121,7 @@ const reconstructBidirectionalPath = (
       currentNode.type !== "end"
     ) {
       path.unshift(currentNode);
-      totalCost += currentNode.weight; 
+      totalCost += currentNode.weight;
     }
     currentKey = forwardParents.get(currentKey) || null;
   }
@@ -136,7 +137,7 @@ const reconstructBidirectionalPath = (
       currentNode.type !== "end"
     ) {
       path.push(currentNode);
-      totalCost += currentNode.weight; 
+      totalCost += currentNode.weight;
     }
     currentKey = backwardParents.get(currentKey) || null;
   }
@@ -152,7 +153,7 @@ export default function Home() {
   const [endNode, setEndNode] = useState<Node | null>(null);
   const [algorithm, setAlgorithm] = useState<
     "astar" | "dijkstra" | "bfs" | "dfs" | "greedy" | "bidirectional"
-  >("astar"); 
+  >("astar");
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [obstaclePercentage, setObstaclePercentage] = useState(20);
@@ -166,7 +167,7 @@ export default function Home() {
     visitedNodes: 0,
     pathLength: 0,
     executionTime: 0,
-    pathCost: 0, 
+    pathCost: 0,
   });
   const [showHeatmap, setShowHeatmap] = useState(false);
 
@@ -213,18 +214,18 @@ export default function Home() {
     setStartNode(null);
     setEndNode(null);
     // Default values
-    setAlgorithm("astar"); 
-    setObstaclePercentage(20); 
+    setAlgorithm("astar");
+    setObstaclePercentage(20);
     setVisualizationSpeed(80);
-    setWeightValue(5); 
-    setDrawMode("start"); 
+    setWeightValue(5);
+    setDrawMode("start");
     setStats({
       visitedNodes: 0,
       pathLength: 0,
       executionTime: 0,
       pathCost: 0, // Reset all stats
     });
-    setShowHeatmap(false); 
+    setShowHeatmap(false);
 
     console.log("Complete reset of the program");
   }, [rows, cols]);
@@ -331,14 +332,14 @@ export default function Home() {
     } else {
       switch (drawMode) {
         case "wall":
-          // **Fixed Logic**: Only set to 'wall' if it's not already a wall
+          //Only set to 'wall' if it's not already a wall
           if (node.type !== "wall") {
             setNodeType(row, col, "wall");
             console.log(`Set node (${row}, ${col}) to wall`);
           }
           break;
         case "weight":
-          // **Fixed Logic**: Only set to 'weight' if it's not already a weight
+          // Only set to 'weight' if it's not already a weight
           if (node.type !== "weight") {
             setNodeType(row, col, "weight", weightValue);
             console.log(
@@ -377,23 +378,52 @@ export default function Home() {
     return neighbors.filter((neighbor) => neighbor.type !== "wall");
   };
 
-  // Visualize node
+  // Visualize node with animated transition from pale to dark blue
   const visualizeNode = async (row: number, col: number, type: NodeType) => {
+    // Set node to 'visited-pale'
     setGrid((prevGrid) => {
       const newGrid = prevGrid.map((r) => r.map((n) => ({ ...n })));
-      if (
-        newGrid[row][col].type !== "start" &&
-        newGrid[row][col].type !== "end"
-      ) {
-        newGrid[row][col].type = type;
+      if (type === "visited-pale") {
+        if (
+          newGrid[row][col].type !== "start" &&
+          newGrid[row][col].type !== "end"
+        ) {
+          newGrid[row][col].type = "visited-pale";
+        }
+      } else if (type === "visited-dark") {
+        if (newGrid[row][col].type === "visited-pale") {
+          newGrid[row][col].type = "visited-dark";
+        }
+      } else {
+        // Handle other types like 'path', etc.
+        if (
+          newGrid[row][col].type !== "start" &&
+          newGrid[row][col].type !== "end"
+        ) {
+          newGrid[row][col].type = type;
+        }
       }
       return newGrid;
     });
     setStats((prev) => ({ ...prev, visitedNodes: prev.visitedNodes + 1 }));
+
     if (visualizationSpeed > 0) {
       await new Promise((resolve) =>
         setTimeout(resolve, 101 - visualizationSpeed)
       );
+    }
+
+    if (type === "visited-pale") {
+      // Promptly set to 'visited-dark' to trigger CSS transition
+      setTimeout(() => {
+        setGrid((prevGrid) => {
+          const newGrid = prevGrid.map((r) => r.map((n) => ({ ...n })));
+          if (newGrid[row][col].type === "visited-pale") {
+            newGrid[row][col].type = "visited-dark";
+          }
+          return newGrid;
+        });
+      }, 100); // Increased delay to ensure smooth transition
     }
   };
 
@@ -409,7 +439,11 @@ export default function Home() {
     setGrid((prevGrid) => {
       return prevGrid.map((row) =>
         row.map((node) => {
-          if (node.type === "visited" || node.type === "path") {
+          if (
+            node.type === "visited-pale" ||
+            node.type === "visited-dark" ||
+            node.type === "path"
+          ) {
             return {
               ...node,
               type: "empty",
@@ -464,7 +498,7 @@ export default function Home() {
           setStats((prev) => ({
             ...prev,
             pathLength: prev.pathLength + 1,
-            pathCost: prev.pathCost + node.weight, 
+            pathCost: prev.pathCost + node.weight,
           }));
           totalCost += node.weight;
           await new Promise((resolve) => setTimeout(resolve, 0)); // reduce delay for faster path drawing
@@ -551,7 +585,7 @@ export default function Home() {
           if (!openSetMap.has(neighborKey)) {
             openSet.enqueue(neighbor);
             openSetMap.set(neighborKey, neighbor);
-            await visualizeNode(neighbor.row, neighbor.col, "visited");
+            await visualizeNode(neighbor.row, neighbor.col, "visited-pale");
           }
         }
       }
@@ -614,7 +648,7 @@ export default function Home() {
           if (!openSetMap.has(neighborKey)) {
             openSet.enqueue(neighbor);
             openSetMap.set(neighborKey, neighbor);
-            await visualizeNode(neighbor.row, neighbor.col, "visited");
+            await visualizeNode(neighbor.row, neighbor.col, "visited-pale");
           }
         }
       }
@@ -671,7 +705,7 @@ export default function Home() {
         if (!openSetMap.has(neighborKey)) {
           openSet.enqueue(neighbor);
           openSetMap.set(neighborKey, neighbor);
-          await visualizeNode(neighbor.row, neighbor.col, "visited");
+          await visualizeNode(neighbor.row, neighbor.col, "visited-pale");
         }
       }
     }
@@ -711,7 +745,7 @@ export default function Home() {
           queue.push(neighbor);
 
           console.log(`Visiting neighbor (${neighbor.row}, ${neighbor.col})`);
-          await visualizeNode(neighbor.row, neighbor.col, "visited");
+          await visualizeNode(neighbor.row, neighbor.col, "visited-pale");
         }
       }
     }
@@ -745,7 +779,7 @@ export default function Home() {
         return reconstructPath(current, grid);
       }
 
-      await visualizeNode(current.row, current.col, "visited");
+      await visualizeNode(current.row, current.col, "visited-pale");
 
       const neighbors = getNeighbors(current, grid);
       for (const neighbor of neighbors) {
@@ -815,7 +849,7 @@ export default function Home() {
           console.log(
             `Forward: Visiting neighbor (${neighbor.row}, ${neighbor.col})`
           );
-          await visualizeNode(neighbor.row, neighbor.col, "visited");
+          await visualizeNode(neighbor.row, neighbor.col, "visited-pale");
 
           if (backwardVisited.has(neighborKey)) {
             meetingPoint = neighbor;
@@ -855,7 +889,7 @@ export default function Home() {
           console.log(
             `Backward: Visiting neighbor (${neighbor.row}, ${neighbor.col})`
           );
-          await visualizeNode(neighbor.row, neighbor.col, "visited");
+          await visualizeNode(neighbor.row, neighbor.col, "visited-pale");
 
           if (forwardVisited.has(neighborKey)) {
             meetingPoint = neighbor;
@@ -1046,22 +1080,24 @@ export default function Home() {
     }
   };
 
-  // Render grid
+  // Render grid with smooth color transitions
   const renderGrid = () => {
     return grid.map((row, rowIndex) => (
       <div key={rowIndex} className="flex">
         {row.map((node, colIndex) => {
+          let className =
+            "w-4 h-4 border border-gray-200 cursor-pointer transition-colors duration-2000 ease-in-out";
           let style: React.CSSProperties = {};
 
           switch (node.type) {
             case "start":
-              style = { backgroundColor: "#22c55e" }; // Tailwind Green-500
+              className += " bg-green-500"; // Tailwind Green-500
               break;
             case "end":
-              style = { backgroundColor: "#ef4444" }; // Tailwind Red-500
+              className += " bg-red-500"; // Tailwind Red-500
               break;
             case "wall":
-              style = { backgroundColor: "#374151" }; // Tailwind Gray-800
+              className += " bg-gray-800"; // Tailwind Gray-800
               break;
             case "weight":
               const yellowIntensity = Math.min(
@@ -1073,27 +1109,23 @@ export default function Home() {
               }; // Gradient from yellow to red
               break;
             case "path":
-              style = { backgroundColor: "#c084fc" }; // Tailwind Purple-400
+              className += " bg-purple-400"; // Tailwind Purple-400
               break;
-            case "visited":
-              style = showHeatmap
-                ? {
-                    backgroundColor: `rgb(0, 0, ${Math.min(
-                      Math.floor((node.f * 100) / (rows * cols)) * 2.55,
-                      255
-                    )})`,
-                  }
-                : { backgroundColor: "#bfdbfe" }; // Tailwind Blue-200
+            case "visited-pale":
+              className += " bg-blue-200"; // Tailwind Blue-200 (Pale Blue)
+              break;
+            case "visited-dark":
+              className += " bg-blue-300"; // Tailwind Blue-300 (Darker Blue)
               break;
             default:
-              style = { backgroundColor: "#ffffff" }; // White
+              className += " bg-white"; // White
           }
 
           return (
             <div
               key={`${rowIndex}-${colIndex}`}
-              className={`w-4 h-4 border border-gray-200 cursor-pointer`}
-              style={style}
+              className={className}
+              style={style} // Apply the dynamic background color
               onMouseDown={() => handleMouseDown(rowIndex, colIndex)}
               onMouseUp={handleMouseUp}
               onMouseEnter={() => handleMouseEnter(rowIndex, colIndex)}
@@ -1162,7 +1194,11 @@ export default function Home() {
               )}
             </Button>
           </div>
-          <Button onClick={resetGrid} disabled={isRunning && !isPaused} className="w-full">
+          <Button
+            onClick={resetGrid}
+            disabled={isRunning && !isPaused}
+            className="w-full"
+          >
             <RotateCcw className="w-4 h-4 mr-2" />
             Reset Grid
           </Button>
@@ -1301,10 +1337,22 @@ export default function Home() {
         <div className="flex items-center justify-between bg-white p-2 -m-4 mb-4 pr-4">
           {/* Stats */}
           <div className="space-x-6 flex text-sm font-medium">
-            <div>Visited Nodes: {stats.visitedNodes}</div>
-            <div>Path Length: {stats.pathLength}</div>
-            <div>Total Path Cost: {stats.pathCost}</div>
-            <div>Execution Time: {stats.executionTime.toFixed(2)} ms</div>
+            <div>
+              <span className="font-semibold">Visited Nodes:</span>{" "}
+              {stats.visitedNodes}
+            </div>
+            <div>
+              <span className="font-semibold">Path Length:</span>{" "}
+              {stats.pathLength}
+            </div>
+            <div>
+              <span className="font-semibold">Total Path Cost:</span>{" "}
+              {stats.pathCost}
+            </div>
+            <div>
+              <span className="font-semibold">Execution Time:</span>{" "}
+              {stats.executionTime.toFixed(2)} ms
+            </div>
           </div>
           {/* GitHub link */}
           <div>
@@ -1381,7 +1429,7 @@ export default function Home() {
               </li>
               <li className="flex items-center">
                 <span
-                  style={{ backgroundColor: "#bfdbfe" }}
+                  style={{ backgroundColor: "#93c5fd" }}
                   className="inline-block w-4 h-4 rounded mr-2"
                 ></span>
                 Visited
