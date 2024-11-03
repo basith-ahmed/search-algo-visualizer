@@ -205,12 +205,47 @@ export default function Home() {
 
   // Reset grid
   const resetGrid = useCallback(() => {
-    setGrid(createInitialGrid(rows, cols));
+    // Stop any running algorithm
+    setIsRunning(false);
+    setIsPaused(false);
+    isPausedRef.current = false;
+
+    // Clear any pending async tasks or callbacks
+    const allTimers: any = setTimeout(() => {}, 0);
+
+    for (let i = 0; i < allTimers; i++) {
+      clearTimeout(i);
+    }
+
+    // Reset all relevant states
+    setGrid(createInitialGrid(rows, cols)); // Reset grid to initial state
     setStartNode(null);
     setEndNode(null);
-    setStats({ visitedNodes: 0, pathLength: 0, executionTime: 0, pathCost: 0 });
-    console.log("Grid reset");
+    // Default Values
+    setAlgorithm("astar"); 
+    setObstaclePercentage(20); 
+    setVisualizationSpeed(80);
+    setWeightValue(5); 
+    setDrawMode("start"); 
+    setStats({
+      visitedNodes: 0,
+      pathLength: 0,
+      executionTime: 0,
+      pathCost: 0, // Reset all stats
+    });
+    setShowHeatmap(false); // Disable heatmap
+
+    console.log("Complete reset of the program");
   }, [rows, cols]);
+
+  // Old resetGrid
+  // const resetGrid = useCallback(() => {
+  //   setGrid(createInitialGrid(rows, cols));
+  //   setStartNode(null);
+  //   setEndNode(null);
+  //   setStats({ visitedNodes: 0, pathLength: 0, executionTime: 0, pathCost: 0 });
+  //   console.log("Grid reset");
+  // }, [rows, cols]);
 
   // Set node type
   const setNodeType = (
@@ -1145,7 +1180,7 @@ export default function Home() {
               )}
             </Button>
           </div>
-          <Button onClick={resetGrid} disabled={isRunning} className="w-full">
+          <Button onClick={resetGrid} disabled={isRunning && !isPaused} className="w-full">
             <RotateCcw className="w-4 h-4 mr-2" />
             Reset Grid
           </Button>
