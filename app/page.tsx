@@ -50,6 +50,7 @@ interface Node {
   h: number;
   weight: number;
   parent: string | null;
+  visitCount: number; // Added visitCount for heatmap
 }
 
 // Grid size
@@ -67,6 +68,7 @@ const createInitialGrid = (rows: number, cols: number): Node[][] => {
         h: 0,
         weight: 1,
         parent: null,
+        visitCount: 0, // Initialize visitCount
       });
     }
     grid.push(currentRow);
@@ -261,6 +263,7 @@ export default function Home() {
         h: h,
         weight,
         parent: null,
+        visitCount: grid[row][col].visitCount, // Preserve visitCount
       });
       console.log(`Start node updated to (${row}, ${col})`);
 
@@ -286,6 +289,7 @@ export default function Home() {
         h: 0,
         weight,
         parent: null,
+        visitCount: grid[row][col].visitCount, // Preserve visitCount
       });
       console.log(`End node updated to (${row}, ${col})`);
 
@@ -380,7 +384,7 @@ export default function Home() {
 
   // Visualize node with animated transition from pale to dark blue
   const visualizeNode = async (row: number, col: number, type: NodeType) => {
-    // Set node to 'visited-pale'
+    // Set node to 'visited-pale' or other types
     setGrid((prevGrid) => {
       const newGrid = prevGrid.map((r) => r.map((n) => ({ ...n })));
       if (type === "visited-pale") {
@@ -389,10 +393,12 @@ export default function Home() {
           newGrid[row][col].type !== "end"
         ) {
           newGrid[row][col].type = "visited-pale";
+          newGrid[row][col].visitCount += 1; // Increment visitCount
         }
       } else if (type === "visited-dark") {
         if (newGrid[row][col].type === "visited-pale") {
           newGrid[row][col].type = "visited-dark";
+          newGrid[row][col].visitCount += 1; // Increment visitCount
         }
       } else {
         // Handle other types like 'path', etc.
@@ -401,6 +407,7 @@ export default function Home() {
           newGrid[row][col].type !== "end"
         ) {
           newGrid[row][col].type = type;
+          newGrid[row][col].visitCount += 1; // Increment visitCount
         }
       }
       return newGrid;
@@ -420,6 +427,7 @@ export default function Home() {
           const newGrid = prevGrid.map((r) => r.map((n) => ({ ...n })));
           if (newGrid[row][col].type === "visited-pale") {
             newGrid[row][col].type = "visited-dark";
+            newGrid[row][col].visitCount += 1; // Increment visitCount
           }
           return newGrid;
         });
@@ -451,6 +459,7 @@ export default function Home() {
               f: Infinity,
               g: Infinity,
               h: 0,
+              visitCount: 0, // Reset visitCount
             };
           }
           return node;
@@ -1006,6 +1015,7 @@ export default function Home() {
       row.map((node) => ({
         type: node.type,
         weight: node.weight,
+        visitCount: node.visitCount, // Include visitCount
       }))
     );
     const dataStr = JSON.stringify(gridData);
@@ -1038,6 +1048,7 @@ export default function Home() {
                 ...grid[rowIndex][colIndex],
                 type: cell.type as NodeType,
                 weight: cell.weight,
+                visitCount: cell.visitCount || 0, // Import visitCount
               }))
             );
             setGrid(newGrid);
@@ -1080,8 +1091,19 @@ export default function Home() {
     }
   };
 
-  // Render grid with smooth color transitions
+  // Render grid with smooth color transitions and heatmap
   const renderGrid = () => {
+    const flatGrid = grid.flat();
+    const maxVisitCount = Math.max(...flatGrid.map((n) => n.visitCount), 1);
+
+    const getHeatmapColor = (visitCount: number, maxVisitCount: number) => {
+      const intensity = visitCount / maxVisitCount;
+      const hue = 240 - 240 * intensity; // 240 (blue) to 0 (red)
+      const saturation = 100;
+      const lightness = 50;
+      return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    };
+
     return grid.map((row, rowIndex) => (
       <div key={rowIndex} className="flex">
         {row.map((node, colIndex) => {
@@ -1089,36 +1111,48 @@ export default function Home() {
             "w-4 h-4 border border-gray-200 cursor-pointer transition-colors duration-2000 ease-in-out";
           let style: React.CSSProperties = {};
 
-          switch (node.type) {
-            case "start":
-              className += " bg-green-500"; // Tailwind Green-500
-              break;
-            case "end":
-              className += " bg-red-500"; // Tailwind Red-500
-              break;
-            case "wall":
-              className += " bg-gray-800"; // Tailwind Gray-800
-              break;
-            case "weight":
-              const yellowIntensity = Math.min(
-                Math.floor((node.weight * 255) / 10),
-                255
-              ); // Scale weight to 0-255
-              style = {
-                backgroundColor: `rgb(255, ${255 - yellowIntensity}, 0)`,
-              }; // Gradient from yellow to red
-              break;
-            case "path":
-              className += " bg-purple-400"; // Tailwind Purple-400
-              break;
-            case "visited-pale":
-              className += " bg-blue-200"; // Tailwind Blue-200 (Pale Blue)
-              break;
-            case "visited-dark":
-              className += " bg-blue-300"; // Tailwind Blue-300 (Darker Blue)
-              break;
-            default:
-              className += " bg-white"; // White
+          if (
+            showHeatmap &&
+            (node.type === "empty" ||
+              node.type === "visited-pale" ||
+              node.type === "visited-dark")
+          ) {
+            const color = getHeatmapColor(node.visitCount, maxVisitCount);
+            style = {
+              backgroundColor: color,
+            };
+          } else {
+            switch (node.type) {
+              case "start":
+                className += " bg-green-500"; // Tailwind Green-500
+                break;
+              case "end":
+                className += " bg-red-500"; // Tailwind Red-500
+                break;
+              case "wall":
+                className += " bg-gray-800"; // Tailwind Gray-800
+                break;
+              case "weight":
+                const yellowIntensity = Math.min(
+                  Math.floor((node.weight * 255) / 10),
+                  255
+                ); // Scale weight to 0-255
+                style = {
+                  backgroundColor: `rgb(255, ${255 - yellowIntensity}, 0)`,
+                }; // Gradient from yellow to red
+                break;
+              case "path":
+                className += " bg-purple-400"; // Tailwind Purple-400
+                break;
+              case "visited-pale":
+                className += " bg-blue-200"; // Tailwind Blue-200 (Pale Blue)
+                break;
+              case "visited-dark":
+                className += " bg-blue-300"; // Tailwind Blue-300 (Darker Blue)
+                break;
+              default:
+                className += " bg-white"; // White
+            }
           }
 
           return (
@@ -1137,184 +1171,180 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100" onMouseUp={handleMouseUp}>
       <div className="w-80 bg-white overflow-y-auto h-screen flex flex-col justify-between">
-        {/* <div className="p-4 h-full flex flex-col gap-4"> */}
-          <h1 className="text-2xl font-bold p-4 ">Pathfinding Visualizer</h1>
-          {/* Controls */}
-          <div className="flex flex-col gap-4 justify-between p-4 -mt-4">
-            <div>
-              <Label htmlFor="algorithm">Select an Algorithm</Label>
-              <Select
-                value={algorithm}
-                onValueChange={(value) =>
-                  setAlgorithm(
-                    value as
-                      | "astar"
-                      | "dijkstra"
-                      | "bfs"
-                      | "dfs"
-                      | "greedy"
-                      | "bidirectional"
-                  )
-                }
-              >
-                <SelectTrigger id="algorithm">
-                  <SelectValue placeholder="Select Algorithm" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="astar">A* Algorithm</SelectItem>
-                  <SelectItem value="dijkstra">Dijkstra's Algorithm</SelectItem>
-                  <SelectItem value="bfs">Breadth-First Search</SelectItem>
-                  <SelectItem value="dfs">Depth-First Search</SelectItem>
-                  <SelectItem value="greedy">
-                    Greedy Best-First Search
-                  </SelectItem>
-                  <SelectItem value="bidirectional">
-                    Bidirectional Search
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={runAlgorithm}
-                disabled={isRunning || !startNode || !endNode}
-                className="flex-1"
-              >
-                <Play className="w-4 h-4 mr-2" />
-                {isRunning ? "Running..." : "Run"}
-              </Button>
-              <Button
-                onClick={handlePause}
-                disabled={!isRunning}
-                className="flex-1"
-              >
-                {isPaused ? (
-                  <Play className="w-4 h-4" />
-                ) : (
-                  <Pause className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
-            <Button
-              onClick={resetGrid}
-              disabled={isRunning && !isPaused}
-              className="w-full"
+        <h1 className="text-2xl font-bold p-4 ">Pathfinding Visualizer</h1>
+        {/* Controls */}
+        <div className="flex flex-col gap-4 justify-between p-4 -mt-4">
+          <div>
+            <Label htmlFor="algorithm">Select an Algorithm</Label>
+            <Select
+              value={algorithm}
+              onValueChange={(value) =>
+                setAlgorithm(
+                  value as
+                    | "astar"
+                    | "dijkstra"
+                    | "bfs"
+                    | "dfs"
+                    | "greedy"
+                    | "bidirectional"
+                )
+              }
             >
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Reset Grid
-            </Button>
-            <Button
-              onClick={generateRandomObstacles}
-              disabled={isRunning}
-              className="w-full"
-            >
-              Random Obstacles
-            </Button>
-            <Button
-              onClick={generateMaze}
-              disabled={isRunning}
-              className="w-full"
-            >
-              Generate Maze
-            </Button>
-            <div>
-              <Label htmlFor="obstacle-density">
-                Obstacle Density: {obstaclePercentage}%
-              </Label>
-              <Slider
-                id="obstacle-density"
-                value={[obstaclePercentage]}
-                onValueChange={(value) => setObstaclePercentage(value[0])}
-                max={40}
-                step={1}
-              />
-            </div>
-            <div>
-              <Label htmlFor="visualization-speed">Visualization Speed</Label>
-              <Slider
-                id="visualization-speed"
-                value={[visualizationSpeed]}
-                onValueChange={(value) => setVisualizationSpeed(value[0])}
-                max={100}
-                step={1}
-              />
-            </div>
-            <div>
-              <Label htmlFor="weight-value">Weight Value: {weightValue}</Label>
-              <Slider
-                id="weight-value"
-                value={[weightValue]}
-                onValueChange={(value) => setWeightValue(value[0])}
-                min={1}
-                max={10}
-                step={1}
-              />
-            </div>
-            <div className="flex items-center space-x-2">
-              <Label>Draw Mode:</Label>
-              <Button
-                variant={drawMode === "start" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setDrawMode("start");
-                  console.log("Draw Mode set to: start");
-                }}
-              >
-                <Flag className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={drawMode === "end" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setDrawMode("end");
-                  console.log("Draw Mode set to: end");
-                }}
-              >
-                <Target className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={drawMode === "wall" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setDrawMode("wall");
-                  console.log("Draw Mode set to: wall");
-                }}
-              >
-                <Pencil className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={drawMode === "weight" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setDrawMode("weight");
-                  console.log("Draw Mode set to: weight");
-                }}
-              >
-                <Info className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={drawMode === "erase" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setDrawMode("erase");
-                  console.log("Draw Mode set to: erase");
-                }}
-              >
-                <Eraser className="w-4 h-4" />
-              </Button>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="heatmap-mode"
-                checked={showHeatmap}
-                onCheckedChange={setShowHeatmap}
-              />
-              <Label htmlFor="heatmap-mode">Show Heatmap</Label>
-            </div>
+              <SelectTrigger id="algorithm">
+                <SelectValue placeholder="Select Algorithm" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="astar">A* Algorithm</SelectItem>
+                <SelectItem value="dijkstra">Dijkstra's Algorithm</SelectItem>
+                <SelectItem value="bfs">Breadth-First Search</SelectItem>
+                <SelectItem value="dfs">Depth-First Search</SelectItem>
+                <SelectItem value="greedy">Greedy Best-First Search</SelectItem>
+                <SelectItem value="bidirectional">
+                  Bidirectional Search
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        {/* </div> */}
+          <div className="flex gap-2">
+            <Button
+              onClick={runAlgorithm}
+              disabled={isRunning || !startNode || !endNode}
+              className="flex-1"
+            >
+              <Play className="w-4 h-4 mr-2" />
+              {isRunning ? "Running..." : "Run"}
+            </Button>
+            <Button
+              onClick={handlePause}
+              disabled={!isRunning}
+              className="flex-1"
+            >
+              {isPaused ? (
+                <Play className="w-4 h-4" />
+              ) : (
+                <Pause className="w-4 h-4" />
+              )}
+            </Button>
+          </div>
+          <Button
+            onClick={resetGrid}
+            disabled={isRunning && !isPaused}
+            className="w-full"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Reset Grid
+          </Button>
+          <Button
+            onClick={generateRandomObstacles}
+            disabled={isRunning}
+            className="w-full"
+          >
+            Random Obstacles
+          </Button>
+          <Button
+            onClick={generateMaze}
+            disabled={isRunning}
+            className="w-full"
+          >
+            Generate Maze
+          </Button>
+          <div>
+            <Label htmlFor="obstacle-density">
+              Obstacle Density: {obstaclePercentage}%
+            </Label>
+            <Slider
+              id="obstacle-density"
+              value={[obstaclePercentage]}
+              onValueChange={(value) => setObstaclePercentage(value[0])}
+              max={40}
+              step={1}
+            />
+          </div>
+          <div>
+            <Label htmlFor="visualization-speed">Visualization Speed</Label>
+            <Slider
+              id="visualization-speed"
+              value={[visualizationSpeed]}
+              onValueChange={(value) => setVisualizationSpeed(value[0])}
+              max={100}
+              step={1}
+            />
+          </div>
+          <div>
+            <Label htmlFor="weight-value">Weight Value: {weightValue}</Label>
+            <Slider
+              id="weight-value"
+              value={[weightValue]}
+              onValueChange={(value) => setWeightValue(value[0])}
+              min={1}
+              max={10}
+              step={1}
+            />
+          </div>
+          <div className="flex items-center space-x-2">
+            <Label>Draw Mode:</Label>
+            <Button
+              variant={drawMode === "start" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setDrawMode("start");
+                console.log("Draw Mode set to: start");
+              }}
+            >
+              <Flag className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={drawMode === "end" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setDrawMode("end");
+                console.log("Draw Mode set to: end");
+              }}
+            >
+              <Target className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={drawMode === "wall" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setDrawMode("wall");
+                console.log("Draw Mode set to: wall");
+              }}
+            >
+              <Pencil className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={drawMode === "weight" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setDrawMode("weight");
+                console.log("Draw Mode set to: weight");
+              }}
+            >
+              <Info className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={drawMode === "erase" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setDrawMode("erase");
+                console.log("Draw Mode set to: erase");
+              }}
+            >
+              <Eraser className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="heatmap-mode"
+              checked={showHeatmap}
+              onCheckedChange={setShowHeatmap}
+            />
+            <Label htmlFor="heatmap-mode">Show Heatmap</Label>
+          </div>
+        </div>
         <div className="flex bottom-0 w-full">
           <Button
             onClick={exportGrid}
@@ -1441,6 +1471,24 @@ export default function Home() {
                 ></span>
                 Visited
               </li>
+              {/* {showHeatmap && (
+                <>
+                  <li className="flex items-center">
+                    <span
+                      style={{ backgroundColor: "hsl(240, 100%, 50%)" }}
+                      className="inline-block w-4 h-4 rounded mr-2"
+                    ></span>
+                    Heatmap Low
+                  </li>
+                  <li className="flex items-center">
+                    <span
+                      style={{ backgroundColor: "hsl(120, 100%, 50%)" }}
+                      className="inline-block w-4 h-4 rounded mr-2"
+                    ></span>
+                    Heatmap High
+                  </li>
+                </>
+              )} */}
             </ul>
           </div>
         </div>
