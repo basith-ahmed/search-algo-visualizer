@@ -185,7 +185,7 @@ export default function Home() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const newRows = Math.floor((window.innerHeight - 150) / 16);
+      const newRows = Math.floor((window.innerHeight - 170) / 16);
       const newCols = Math.floor((window.innerWidth - (320 + 74)) / 16);
       setRows(newRows);
       setCols(newCols);
@@ -1138,203 +1138,210 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <div className="w-80 bg-white p-4 shadow-md overflow-y-auto h-screen">
-        <h1 className="text-2xl font-bold mb-4">Pathfinding Visualizer</h1>
-        {/* Controls */}
-        <div className="flex flex-col h-[92.5%] justify-between">
-          <div>
-            <Label htmlFor="algorithm">Algorithm</Label>
-            <Select
-              value={algorithm}
-              onValueChange={(value) =>
-                setAlgorithm(
-                  value as
-                    | "astar"
-                    | "dijkstra"
-                    | "bfs"
-                    | "dfs"
-                    | "greedy"
-                    | "bidirectional"
-                )
-              }
-            >
-              <SelectTrigger id="algorithm">
-                <SelectValue placeholder="Select Algorithm" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="astar">A* Algorithm</SelectItem>
-                <SelectItem value="dijkstra">Dijkstra's Algorithm</SelectItem>
-                <SelectItem value="bfs">Breadth-First Search</SelectItem>
-                <SelectItem value="dfs">Depth-First Search</SelectItem>
-                <SelectItem value="greedy">Greedy Best-First Search</SelectItem>
-                <SelectItem value="bidirectional">
-                  Bidirectional Search
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex gap-2">
+      <div className="w-80 bg-white overflow-y-auto h-screen flex flex-col justify-between">
+        {/* <div className="p-4 h-full flex flex-col gap-4"> */}
+          <h1 className="text-2xl font-bold p-4 ">Pathfinding Visualizer</h1>
+          {/* Controls */}
+          <div className="flex flex-col gap-4 justify-between p-4 -mt-4">
+            <div>
+              <Label htmlFor="algorithm">Select an Algorithm</Label>
+              <Select
+                value={algorithm}
+                onValueChange={(value) =>
+                  setAlgorithm(
+                    value as
+                      | "astar"
+                      | "dijkstra"
+                      | "bfs"
+                      | "dfs"
+                      | "greedy"
+                      | "bidirectional"
+                  )
+                }
+              >
+                <SelectTrigger id="algorithm">
+                  <SelectValue placeholder="Select Algorithm" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="astar">A* Algorithm</SelectItem>
+                  <SelectItem value="dijkstra">Dijkstra's Algorithm</SelectItem>
+                  <SelectItem value="bfs">Breadth-First Search</SelectItem>
+                  <SelectItem value="dfs">Depth-First Search</SelectItem>
+                  <SelectItem value="greedy">
+                    Greedy Best-First Search
+                  </SelectItem>
+                  <SelectItem value="bidirectional">
+                    Bidirectional Search
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={runAlgorithm}
+                disabled={isRunning || !startNode || !endNode}
+                className="flex-1"
+              >
+                <Play className="w-4 h-4 mr-2" />
+                {isRunning ? "Running..." : "Run"}
+              </Button>
+              <Button
+                onClick={handlePause}
+                disabled={!isRunning}
+                className="flex-1"
+              >
+                {isPaused ? (
+                  <Play className="w-4 h-4" />
+                ) : (
+                  <Pause className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
             <Button
-              onClick={runAlgorithm}
-              disabled={isRunning || !startNode || !endNode}
-              className="flex-1"
+              onClick={resetGrid}
+              disabled={isRunning && !isPaused}
+              className="w-full"
             >
-              <Play className="w-4 h-4 mr-2" />
-              {isRunning ? "Running..." : "Run"}
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Reset Grid
             </Button>
             <Button
-              onClick={handlePause}
-              disabled={!isRunning}
-              className="flex-1"
+              onClick={generateRandomObstacles}
+              disabled={isRunning}
+              className="w-full"
             >
-              {isPaused ? (
-                <Play className="w-4 h-4" />
-              ) : (
-                <Pause className="w-4 h-4" />
-              )}
+              Random Obstacles
             </Button>
+            <Button
+              onClick={generateMaze}
+              disabled={isRunning}
+              className="w-full"
+            >
+              Generate Maze
+            </Button>
+            <div>
+              <Label htmlFor="obstacle-density">
+                Obstacle Density: {obstaclePercentage}%
+              </Label>
+              <Slider
+                id="obstacle-density"
+                value={[obstaclePercentage]}
+                onValueChange={(value) => setObstaclePercentage(value[0])}
+                max={40}
+                step={1}
+              />
+            </div>
+            <div>
+              <Label htmlFor="visualization-speed">Visualization Speed</Label>
+              <Slider
+                id="visualization-speed"
+                value={[visualizationSpeed]}
+                onValueChange={(value) => setVisualizationSpeed(value[0])}
+                max={100}
+                step={1}
+              />
+            </div>
+            <div>
+              <Label htmlFor="weight-value">Weight Value: {weightValue}</Label>
+              <Slider
+                id="weight-value"
+                value={[weightValue]}
+                onValueChange={(value) => setWeightValue(value[0])}
+                min={1}
+                max={10}
+                step={1}
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Label>Draw Mode:</Label>
+              <Button
+                variant={drawMode === "start" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setDrawMode("start");
+                  console.log("Draw Mode set to: start");
+                }}
+              >
+                <Flag className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={drawMode === "end" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setDrawMode("end");
+                  console.log("Draw Mode set to: end");
+                }}
+              >
+                <Target className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={drawMode === "wall" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setDrawMode("wall");
+                  console.log("Draw Mode set to: wall");
+                }}
+              >
+                <Pencil className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={drawMode === "weight" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setDrawMode("weight");
+                  console.log("Draw Mode set to: weight");
+                }}
+              >
+                <Info className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={drawMode === "erase" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setDrawMode("erase");
+                  console.log("Draw Mode set to: erase");
+                }}
+              >
+                <Eraser className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="heatmap-mode"
+                checked={showHeatmap}
+                onCheckedChange={setShowHeatmap}
+              />
+              <Label htmlFor="heatmap-mode">Show Heatmap</Label>
+            </div>
           </div>
+        {/* </div> */}
+        <div className="flex bottom-0 w-full">
           <Button
-            onClick={resetGrid}
-            disabled={isRunning && !isPaused}
-            className="w-full"
+            onClick={exportGrid}
+            className="flex-1 rounded-none h-[3.25rem]"
           >
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Reset Grid
+            <Download className="w-4 h-4 mr-2" />
+            Export
           </Button>
           <Button
-            onClick={generateRandomObstacles}
-            disabled={isRunning}
-            className="w-full"
+            onClick={() => document.getElementById("import-input")?.click()}
+            className="flex-1 rounded-none border border-y-0 border-r-0 border-black/50 border-l-[0.1px] h-[3.25rem]"
           >
-            Random Obstacles
+            <Upload className="w-4 h-4 mr-2" />
+            Import
           </Button>
-          <Button
-            onClick={generateMaze}
-            disabled={isRunning}
-            className="w-full"
-          >
-            Generate Maze
-          </Button>
-          <div>
-            <Label htmlFor="obstacle-density">
-              Obstacle Density: {obstaclePercentage}%
-            </Label>
-            <Slider
-              id="obstacle-density"
-              value={[obstaclePercentage]}
-              onValueChange={(value) => setObstaclePercentage(value[0])}
-              max={40}
-              step={1}
-            />
-          </div>
-          <div>
-            <Label htmlFor="visualization-speed">Visualization Speed</Label>
-            <Slider
-              id="visualization-speed"
-              value={[visualizationSpeed]}
-              onValueChange={(value) => setVisualizationSpeed(value[0])}
-              max={100}
-              step={1}
-            />
-          </div>
-          <div>
-            <Label htmlFor="weight-value">Weight Value: {weightValue}</Label>
-            <Slider
-              id="weight-value"
-              value={[weightValue]}
-              onValueChange={(value) => setWeightValue(value[0])}
-              min={1}
-              max={10}
-              step={1}
-            />
-          </div>
-          <div className="flex items-center space-x-2">
-            <Label>Draw Mode:</Label>
-            <Button
-              variant={drawMode === "start" ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setDrawMode("start");
-                console.log("Draw Mode set to: start");
-              }}
-            >
-              <Flag className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={drawMode === "end" ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setDrawMode("end");
-                console.log("Draw Mode set to: end");
-              }}
-            >
-              <Target className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={drawMode === "wall" ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setDrawMode("wall");
-                console.log("Draw Mode set to: wall");
-              }}
-            >
-              <Pencil className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={drawMode === "weight" ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setDrawMode("weight");
-                console.log("Draw Mode set to: weight");
-              }}
-            >
-              <Info className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={drawMode === "erase" ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setDrawMode("erase");
-                console.log("Draw Mode set to: erase");
-              }}
-            >
-              <Eraser className="w-4 h-4" />
-            </Button>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="heatmap-mode"
-              checked={showHeatmap}
-              onCheckedChange={setShowHeatmap}
-            />
-            <Label htmlFor="heatmap-mode">Show Heatmap</Label>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={exportGrid} className="flex-1">
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
-            <Button
-              onClick={() => document.getElementById("import-input")?.click()}
-              className="flex-1"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              Import
-            </Button>
-            <input
-              id="import-input"
-              type="file"
-              accept=".json"
-              onChange={importGrid}
-              style={{ display: "none" }}
-            />
-          </div>
+          <input
+            id="import-input"
+            type="file"
+            accept=".json"
+            onChange={importGrid}
+            style={{ display: "none" }}
+          />
         </div>
       </div>
-      <div className="flex-1 p-4 overflow-auto flex flex-col">
+      <div className="flex-1 overflow-auto flex flex-col">
         {/* Navbar */}
-        <div className="flex items-center justify-between bg-white p-2 -m-4 mb-4 pr-4">
+        <div className="flex items-center justify-between bg-white p-4 z-10">
           {/* Stats */}
           <div className="space-x-6 flex text-sm font-medium">
             <div>
@@ -1373,7 +1380,7 @@ export default function Home() {
           </div>
         </div>
         {/* Footer */}
-        <div className="bg-white p-2 -m-4 mt-4 pr-4">
+        <div className="bg-white p-4 z-10">
           {/* Color Legend */}
           <div className="flex flex-row items-center space-x-4">
             <h2 className="font-semibold text-sm text-nowrap">Color Legend:</h2>
