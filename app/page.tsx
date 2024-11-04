@@ -23,6 +23,7 @@ import {
   Flag,
   Download,
   Upload,
+  Link2,
 } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -1173,11 +1174,11 @@ export default function Home() {
   return (
     <div className="flex h-screen bg-gray-100" onMouseUp={handleMouseUp}>
       <div className="w-80 bg-white overflow-y-auto h-screen flex flex-col justify-between">
-        <h1 className="text-2xl font-bold p-4 ">Pathfinding Visualizer</h1>
+        <h1 className="text-2xl font-bold p-4 h-[3.5rem] border-b-[1px] border-r-[1px] border-secondary border-dashed">Pathfinding Visualizer</h1>
         {/* Controls */}
         <div className="flex flex-col gap-4 justify-between p-4 -mt-4">
           <div>
-            <Label htmlFor="algorithm">Select an Algorithm</Label>
+            <Label htmlFor="algorithm">Select an Algorithm:</Label>
             <Select
               value={algorithm}
               onValueChange={(value) =>
@@ -1213,7 +1214,7 @@ export default function Home() {
               disabled={isRunning || !startNode || !endNode}
               className="flex-1"
             >
-              <Play className="w-4 h-4 mr-2" />
+              <Play className="w-4 h-4 mr-1" />
               {isRunning ? "Running..." : "Run"}
             </Button>
             <Button
@@ -1237,18 +1238,18 @@ export default function Home() {
             Reset Grid
           </Button>
           <Button
-            onClick={generateRandomObstacles}
-            disabled={isRunning}
-            className="w-full"
-          >
-            Random Obstacles
-          </Button>
-          <Button
             onClick={generateMaze}
             disabled={isRunning}
             className="w-full"
           >
             Generate Maze
+          </Button>
+          <Button
+            onClick={generateRandomObstacles}
+            disabled={isRunning}
+            className="w-full"
+          >
+            Random Obstacles
           </Button>
           <div>
             <Label htmlFor="obstacle-density">
@@ -1263,7 +1264,7 @@ export default function Home() {
             />
           </div>
           <div>
-            <Label htmlFor="visualization-speed">Visualization Speed</Label>
+            <Label htmlFor="visualization-speed">Visualization Speed: {visualizationSpeed}%</Label>
             <Slider
               id="visualization-speed"
               value={[visualizationSpeed]}
@@ -1273,7 +1274,7 @@ export default function Home() {
             />
           </div>
           <div>
-            <Label htmlFor="weight-value">Weight Value: {weightValue}</Label>
+            <Label htmlFor="weight-value">Weight Value: {weightValue} Units</Label>
             <Slider
               id="weight-value"
               value={[weightValue]}
@@ -1336,28 +1337,28 @@ export default function Home() {
               <Eraser className="w-4 h-4" />
             </Button>
           </div>
-          <div className="flex items-center space-x-2">
+          {/* <div className="flex items-center space-x-2">
             <Switch
               id="heatmap-mode"
               checked={showHeatmap}
               onCheckedChange={setShowHeatmap}
             />
             <Label htmlFor="heatmap-mode">Show Heatmap</Label>
-          </div>
+          </div> */}
         </div>
         <div className="flex bottom-0 w-full">
           <Button
             onClick={exportGrid}
             className="flex-1 rounded-none h-[3.25rem]"
           >
-            <Download className="w-4 h-4 mr-2" />
+            <Upload className="w-4 h-4 mr-1" />
             Export
           </Button>
           <Button
             onClick={() => document.getElementById("import-input")?.click()}
-            className="flex-1 rounded-none border border-y-0 border-r-0 border-black/50 border-l-[0.1px] h-[3.25rem]"
+            className="flex-1 rounded-none border-secondary border-dashed border-l-[0.1px] h-[3.25rem]"
           >
-            <Upload className="w-4 h-4 mr-2" />
+            <Download className="w-4 h-4 mr-1" />
             Import
           </Button>
           <input
@@ -1397,9 +1398,10 @@ export default function Home() {
               href="https://github.com/basith-ahmed/search-algo-visualizer"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-500 hover:underline text-sm"
+              className="text-blue-500 hover:underline text-sm flex justify-center items-center"
             >
               View on GitHub
+              <Link2 className="w-4 h-4 ml-1" />
             </a>
           </div>
         </div>
