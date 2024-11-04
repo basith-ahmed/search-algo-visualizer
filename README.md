@@ -22,9 +22,9 @@ As the name suggests, this is a visualization webpage for a selected few pathfin
   - **Random Obstacles:** Generate a random distribution of walls.
   - **Maze Generation:** Create mazes using Recursive Backtracking.
   - **Import/Export:** Save and load grid configurations.
-- **Real-time Statistics:** Monitor visited nodes, path length, total path cost, and execution time.
-- **Responsive Design:** Optimized for various screen sizes.
-- **Heatmap Mode:** Toggle to view a heatmap of node visits.
+<!-- - **Real-time Statistics:** Monitor visited nodes, path length, total path cost, and execution time. -->
+<!-- - **Responsive Design:** Optimized for various screen sizes. -->
+<!-- - **Heatmap Mode:** Toggle to view a heatmap of node visits. -->
 
 ## Demo
 
@@ -81,10 +81,10 @@ Simultaneously searches forward from the start node and backward from the end no
    ```bash
    npm run dev
    ```
-
+<!-- 
 4. **Open in Browser**
 
-   Navigate to `http://localhost:3000` in your web browser to view the application.
+   Navigate to `http://localhost:3000` in your web browser to view the application. -->
 
 ## Usage
 
@@ -114,12 +114,12 @@ Simultaneously searches forward from the start node and backward from the end no
 4. **Import/Export:**
    - **Export:** Save the current grid configuration as a JSON file.
    - **Import:** Load a previously saved grid configuration.
-
+<!-- 
 5. **Statistics:**
    - View real-time statistics including visited nodes, path length, total path cost, and execution time.
 
 6. **Heatmap Mode:**
-   - Toggle the heatmap to visualize the frequency of node visits.
+   - Toggle the heatmap to visualize the frequency of node visits. -->
 
 ## Contributing
 
