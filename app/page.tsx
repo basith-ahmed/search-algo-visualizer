@@ -1174,7 +1174,7 @@ export default function Home() {
   return (
     <div className="flex h-screen bg-gray-100" onMouseUp={handleMouseUp}>
       <div className="w-80 bg-white overflow-y-auto h-screen flex flex-col justify-between">
-        <h1 className="text-2xl font-bold p-4 h-[3.5rem] border-b-[1px] border-r-[1px] border-secondary border-dashed">Pathfinding Visualizer</h1>
+        <h1 className="text-2xl font-bold p-4 h-[3.25rem] border-b-[1px] border-r-[1px] border-secondary border-dashed">Pathfinding Visualizer</h1>
         {/* Controls */}
         <div className="flex flex-col gap-4 justify-between p-4 -mt-4">
           <div>

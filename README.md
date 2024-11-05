@@ -1,3 +1,6 @@
+> [!NOTE]  
+> Under Development 
+
 # Pathfinding Visualizer
 As the name suggests, this is a visualization webpage for a selected few pathfinding algorithms. Feel free to contribute if you find any bugs or want to add a new feature. You might also add your favorite algorithm if it's not already included :)
 
